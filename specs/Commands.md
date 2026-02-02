@@ -8,12 +8,13 @@
 
 0. [초기화](#초기화) (1개)
 1. [Project 관리](#project-관리) (6개)
-2. [Project 실행](#project-실행) (2개)
-3. [Phase 관리](#phase-관리) (4개)
-4. [Task 관리](#task-관리) (6개)
-5. [Memo 관리](#memo-관리) (4개)
+2. [Project 실행](#project-실행) (5개)
+3. [Feature 관리](#feature-관리) (5개)
+4. [Task 관리](#task-관리) (7개)
+5. [Edge 관리](#edge-관리) (4개)
+6. [Memo 관리](#memo-관리) (4개)
 
-**총 23개 명령어**
+**총 32개 명령어**
 
 ---
 
@@ -100,7 +101,7 @@ clari init my_ecommerce-api "E-commerce REST API"
 ## Commands
 - `clari project set '<json>'` - 프로젝트 설정
 - `clari required` - 필수 입력 확인
-- `clari project plan` - 플래닝 시작
+- `clari plan features` - Feature 목록 산출
 - `clari project start` - 실행 시작
 ```
 
@@ -452,32 +453,32 @@ clari required
 
 ## Project 실행
 
-### clari project plan
+### clari plan features
 
-**설명**: 전체 프로젝트 플래닝 시작
+**설명**: LLM을 통해 프로젝트 설명 기반 Feature 목록 산출
 
 **사용법**:
 ```bash
-clari project plan
+clari plan features
 ```
 
 **동작**:
 1. 필수 설정 확인
-2. Phase 생성 프롬프트
-3. 각 Phase별 Task 생성 프롬프트
-4. MASTER_PLAN.md 생성
+2. Project description을 LLM에 전달
+3. Feature 목록 자동 산출
+4. 결과를 features 테이블에 저장
 
 **응답**:
 ```json
 {
   "success": true,
-  "mode": "planning",
-  "message": "Planning mode started. Create phases and tasks.",
-  "next_steps": [
-    "Create phases: clari phase create '<json>'",
-    "Create tasks: clari task push '<json>'",
-    "Write MASTER_PLAN.md"
-  ]
+  "features": [
+    {"id": 1, "name": "로그인", "description": "사용자 인증 기능"},
+    {"id": 2, "name": "결제", "description": "상품 결제 기능"},
+    {"id": 3, "name": "블로그", "description": "포스트 작성 및 관리"}
+  ],
+  "total": 3,
+  "message": "Features generated successfully"
 }
 ```
 
@@ -495,27 +496,52 @@ clari project plan
 
 ### clari project start
 
-**설명**: 전체 프로젝트 실행 시작
+**설명**: 전체 프로젝트 자동 실행 (Claritask 드라이버)
 
 **사용법**:
 ```bash
-clari project start
+clari project start                # pending Task 전체 자동 실행
+clari project start --feature 2    # 특정 Feature만 실행
+clari project start --dry-run      # 실행 없이 Task 목록만 출력
 ```
 
+**옵션**:
+- `--feature <id>`: 특정 Feature의 Task만 실행
+- `--dry-run`: 실제 실행 없이 실행 순서만 출력
+
 **동작**:
-1. pending task 자동 pop
-2. Manifest 제공
-3. Task 실행
-4. 완료/실패 처리
-5. 다음 task로 이동
+1. Feature Edge 기반 Feature 실행 순서 결정 (Topological Sort)
+2. Feature 내 Task Edge 기반 Task 실행 순서 결정
+3. 각 Task마다 `claude --print` 비대화형 호출
+4. 의존 Task의 `result`를 컨텍스트에 포함
+5. Task 완료/실패 처리
+6. 모든 Task 완료 시 종료
 
 **응답**:
 ```json
 {
   "success": true,
   "mode": "execution",
-  "message": "Execution mode started",
-  "next_task": "T001"
+  "message": "Execution started",
+  "total_tasks": 42,
+  "next_task": {
+    "id": 1,
+    "title": "user_table_sql"
+  }
+}
+```
+
+**응답** (--dry-run):
+```json
+{
+  "success": true,
+  "mode": "dry-run",
+  "execution_order": [
+    {"id": 1, "title": "user_table_sql", "feature": "로그인"},
+    {"id": 2, "title": "user_model", "feature": "로그인", "depends_on": [1]},
+    {"id": 3, "title": "auth_service", "feature": "로그인", "depends_on": [2]}
+  ],
+  "total_tasks": 3
 }
 ```
 
@@ -530,90 +556,153 @@ clari project start
 
 ---
 
-## Phase 관리
+### clari project stop
 
-### clari phase create
-
-**설명**: Phase 생성
+**설명**: 실행 중인 프로젝트 중단 (현재 Task 완료 후)
 
 **사용법**:
 ```bash
-clari phase create '<json>'
+clari project stop
 ```
-
-**JSON 포맷**:
-```json
-{
-  "project_id": "P001",
-  "name": "UI Planning",
-  "description": "User interface design and wireframing",
-  "order_num": 1
-}
-```
-
-**필수 필드**:
-- `project_id`
-- `name`
-- `order_num`
 
 **응답**:
 ```json
 {
   "success": true,
-  "phase_id": "PH001",
-  "name": "UI Planning",
-  "message": "Phase created successfully"
+  "message": "Execution will stop after current task completes",
+  "current_task": {
+    "id": 5,
+    "title": "auth_service"
+  }
 }
 ```
 
-**예시**:
-```bash
-clari phase create '{
-  "project_id": "P001",
-  "name": "Development",
-  "description": "Implementation phase",
-  "order_num": 3
-}'
+**에러**:
+```json
+{
+  "success": false,
+  "error": "No execution in progress"
+}
 ```
 
 ---
 
-### clari phase list
+### clari project status
 
-**설명**: Phase 목록 조회
+**설명**: 프로젝트 실행 상태 조회
 
 **사용법**:
 ```bash
-clari phase list
+clari project status
 ```
 
 **응답**:
 ```json
 {
-  "phases": [
+  "execution": {
+    "running": true,
+    "started_at": "2026-02-02T10:00:00Z",
+    "elapsed": "1h 30m"
+  },
+  "progress": {
+    "total_features": 5,
+    "completed_features": 2,
+    "total_tasks": 42,
+    "pending": 25,
+    "doing": 1,
+    "done": 15,
+    "failed": 1
+  },
+  "current_task": {
+    "id": 16,
+    "title": "payment_api",
+    "feature": "결제",
+    "started_at": "2026-02-02T11:25:00Z"
+  },
+  "failed_tasks": [
     {
-      "id": "PH001",
-      "name": "UI Planning",
-      "description": "User interface design",
-      "order_num": 1,
+      "id": 10,
+      "title": "external_auth_integration",
+      "error": "API timeout"
+    }
+  ]
+}
+```
+
+---
+
+### clari project plan
+
+**설명**: 전체 프로젝트 플래닝 시작 (대화형)
+
+**사용법**:
+```bash
+clari project plan
+```
+
+**동작**:
+1. 필수 설정 확인
+2. Feature 생성 대화
+3. 각 Feature별 Spec 수립
+4. Task 생성
+5. Edge 추론
+
+**응답**:
+```json
+{
+  "success": true,
+  "mode": "planning",
+  "message": "Planning mode started",
+  "next_steps": [
+    "Generate features: clari plan features",
+    "Set feature specs: clari feature <id> spec",
+    "Generate tasks: clari feature <id> tasks",
+    "Infer edges: clari edge infer --project"
+  ]
+}
+```
+
+---
+
+## Feature 관리
+
+### clari feature list
+
+**설명**: Feature 목록 조회
+
+**사용법**:
+```bash
+clari feature list
+```
+
+**응답**:
+```json
+{
+  "features": [
+    {
+      "id": 1,
+      "name": "로그인",
+      "description": "사용자 인증 기능",
+      "spec": "JWT 기반 인증. Access token 1시간...",
       "status": "done",
-      "tasks_total": 5,
-      "tasks_done": 5
+      "tasks_total": 4,
+      "tasks_done": 4
     },
     {
-      "id": "PH002",
-      "name": "API Design",
-      "order_num": 2,
+      "id": 2,
+      "name": "결제",
+      "description": "상품 결제 기능",
       "status": "active",
-      "tasks_total": 8,
-      "tasks_done": 3
+      "tasks_total": 3,
+      "tasks_done": 1,
+      "depends_on": [1]
     },
     {
-      "id": "PH003",
-      "name": "Development",
-      "order_num": 3,
+      "id": 3,
+      "name": "블로그",
+      "description": "포스트 작성 및 관리",
       "status": "pending",
-      "tasks_total": 20,
+      "tasks_total": 3,
       "tasks_done": 0
     }
   ],
@@ -623,63 +712,157 @@ clari phase list
 
 ---
 
-### clari phase <phase-id> plan
+### clari feature add
 
-**설명**: 특정 Phase 플래닝
+**설명**: Feature 추가
 
 **사용법**:
 ```bash
-clari phase PH002 plan
+clari feature add '<json>'
 ```
 
-**동작**:
-1. Phase 확인
-2. Task 생성 프롬프트
-3. Phase plan 문서 생성
+**JSON 포맷**:
+```json
+{
+  "name": "로그인",
+  "description": "사용자 인증 기능"
+}
+```
+
+**필수 필드**:
+- `name`
+- `description`
 
 **응답**:
 ```json
 {
   "success": true,
-  "phase_id": "PH002",
-  "phase_name": "API Design",
-  "mode": "planning",
-  "message": "Phase planning started. Create tasks for this phase."
+  "feature_id": 1,
+  "name": "로그인",
+  "message": "Feature created successfully"
 }
 ```
 
-**에러**:
+**예시**:
+```bash
+clari feature add '{
+  "name": "결제",
+  "description": "Stripe 기반 상품 결제 기능"
+}'
+```
+
+---
+
+### clari feature \<id\> spec
+
+**설명**: Feature spec 대화 시작 (LLM과 상세 스펙 수립)
+
+**사용법**:
+```bash
+clari feature 1 spec
+```
+
+**동작**:
+1. Feature 정보 조회
+2. LLM과 대화형으로 spec 상세화
+3. 결과를 feature.spec에 저장
+
+**응답**:
 ```json
 {
-  "success": false,
-  "error": "Phase not found: PH999"
+  "success": true,
+  "feature_id": 1,
+  "feature_name": "로그인",
+  "mode": "spec_conversation",
+  "message": "Spec conversation started",
+  "prompts": [
+    "로그인 방식은? (JWT vs Session)",
+    "소셜 로그인 필요?",
+    "토큰 만료 시간은?"
+  ]
+}
+```
+
+**spec 저장 후 응답**:
+```json
+{
+  "success": true,
+  "feature_id": 1,
+  "spec": "JWT 기반 인증. Access token 1시간, Refresh token 7일. 소셜 로그인 미지원.",
+  "message": "Spec saved successfully"
 }
 ```
 
 ---
 
-### clari phase <phase-id> start
+### clari feature \<id\> tasks
 
-**설명**: 특정 Phase 실행 시작
+**설명**: Feature 하위 Task 생성 (LLM 추론)
 
 **사용법**:
 ```bash
-clari phase PH002 start
+clari feature 1 tasks
 ```
 
 **동작**:
-1. Phase의 pending task만 실행
-2. Phase 완료 시 다음 Phase로 이동 안 함 (명시적 호출 필요)
+1. Feature spec 확인
+2. LLM이 Task 목록 산출
+3. tasks 테이블에 저장
 
 **응답**:
 ```json
 {
   "success": true,
-  "phase_id": "PH002",
-  "phase_name": "API Design",
+  "feature_id": 1,
+  "feature_name": "로그인",
+  "tasks_created": [
+    {"id": 1, "title": "user_table_sql"},
+    {"id": 2, "title": "user_model"},
+    {"id": 3, "title": "auth_service"},
+    {"id": 4, "title": "login_api"}
+  ],
+  "total": 4,
+  "message": "Tasks generated successfully"
+}
+```
+
+**에러** (spec 없음):
+```json
+{
+  "success": false,
+  "error": "Feature spec not set",
+  "message": "Run 'clari feature 1 spec' first"
+}
+```
+
+---
+
+### clari feature \<id\> start
+
+**설명**: 특정 Feature 실행 시작
+
+**사용법**:
+```bash
+clari feature 2 start
+```
+
+**동작**:
+1. Feature의 pending Task만 실행
+2. Task Edge 기반 실행 순서 결정
+3. Feature 완료 시 다음 Feature로 이동 안 함 (명시적 호출 필요)
+
+**응답**:
+```json
+{
+  "success": true,
+  "feature_id": 2,
+  "feature_name": "결제",
   "mode": "execution",
-  "next_task": "T010",
-  "message": "Phase execution started"
+  "next_task": {
+    "id": 5,
+    "title": "payment_table_sql"
+  },
+  "message": "Feature execution started"
 }
 ```
 
@@ -687,7 +870,18 @@ clari phase PH002 start
 ```json
 {
   "success": false,
-  "error": "No pending tasks in phase PH002"
+  "error": "No pending tasks in feature 2"
+}
+```
+
+**에러** (의존성 미해결):
+```json
+{
+  "success": false,
+  "error": "Feature dependencies not resolved",
+  "blocked_by": [
+    {"id": 1, "name": "로그인", "status": "active"}
+  ]
 }
 ```
 
@@ -695,48 +889,82 @@ clari phase PH002 start
 
 ## Task 관리
 
-### clari task push
+### clari task list
 
-**설명**: Task 추가 (validation 포함)
+**설명**: Task 목록 조회
 
 **사용법**:
 ```bash
-clari task push '<json>'
+clari task list                    # 전체 Task
+clari task list --feature 1        # 특정 Feature의 Task
+clari task list --status pending   # 특정 상태의 Task
+```
+
+**옵션**:
+- `--feature <id>`: 특정 Feature의 Task만 조회
+- `--status <status>`: 특정 상태의 Task만 조회 (pending, doing, done, failed)
+
+**응답**:
+```json
+{
+  "tasks": [
+    {
+      "id": 1,
+      "feature_id": 1,
+      "title": "user_table_sql",
+      "status": "done",
+      "depends_on": []
+    },
+    {
+      "id": 2,
+      "feature_id": 1,
+      "title": "user_model",
+      "status": "done",
+      "depends_on": [1]
+    },
+    {
+      "id": 3,
+      "feature_id": 1,
+      "title": "auth_service",
+      "status": "doing",
+      "depends_on": [2]
+    }
+  ],
+  "total": 3
+}
+```
+
+---
+
+### clari task add
+
+**설명**: Task 추가
+
+**사용법**:
+```bash
+clari task add '<json>'
 ```
 
 **JSON 포맷**:
 ```json
 {
-  "phase_id": "PH002",
-  "parent_id": null,
-  "title": "Design User Authentication API",
-  "content": "Design endpoints for login, logout, register, password reset",
-  "level": "node",
-  "skill": "",
-  "references": [
-    "specs/auth-requirements.md",
-    "specs/security-guidelines.md"
-  ]
+  "feature_id": 1,
+  "title": "user_table_sql",
+  "content": "CREATE TABLE users (id, email, password_hash, created_at)"
 }
 ```
 
 **필수 필드**:
-- `phase_id`
+- `feature_id`
 - `title`
 - `content`
-
-**선택 필드**:
-- `parent_id`: 부모 task ID (계층 구조)
-- `level`: '', 'node', 'leaf' (기본: '')
-- `skill`: Skill ID
-- `references`: 참조 파일 경로 배열
 
 **응답**:
 ```json
 {
   "success": true,
-  "task_id": "T042",
-  "title": "Design User Authentication API",
+  "task_id": 1,
+  "title": "user_table_sql",
   "message": "Task created successfully"
 }
 ```
@@ -746,19 +974,16 @@ clari task push '<json>'
 {
   "success": false,
   "error": "Missing required field: title",
-  "required_fields": ["phase_id", "title", "content"],
-  "your_task": {...}
+  "required_fields": ["feature_id", "title", "content"]
 }
 ```
 
 **예시**:
 ```bash
-clari task push '{
-  "phase_id": "PH002",
-  "title": "Implement Login API",
-  "content": "Create POST /api/auth/login endpoint with JWT",
-  "level": "leaf",
-  "references": ["specs/api-spec.md"]
+clari task add '{
+  "feature_id": 1,
+  "title": "auth_service",
+  "content": "JWT 기반 인증 서비스 구현. login, logout, refresh 메서드 포함."
 }'
 ```
 
@@ -766,7 +991,7 @@ clari task push '{
 
 ### clari task pop
 
-**설명**: 다음 pending Task 조회 (Manifest 포함)
+**설명**: 다음 실행 가능 Task 조회 (의존성 해결된 것만)
 
 **사용법**:
 ```bash
@@ -777,17 +1002,25 @@ clari task pop
 ```json
 {
   "task": {
-    "id": "T042",
-    "phase_id": "PH002",
-    "parent_id": null,
-    "title": "Implement Auth API",
-    "content": "Create JWT-based authentication endpoints:\n- POST /api/auth/login\n- POST /api/auth/logout\n- POST /api/auth/refresh",
-    "level": "leaf",
-    "skill": "",
-    "references": ["specs/auth-spec.md"],
+    "id": 3,
+    "feature_id": 1,
+    "title": "auth_service",
+    "content": "JWT 기반 인증 서비스 구현",
     "status": "pending",
     "created_at": "2026-02-02T10:00:00Z"
   },
+  "dependencies": [
+    {
+      "id": 1,
+      "title": "user_table_sql",
+      "result": "테이블 생성 완료. 컬럼: id, email, password_hash, created_at"
+    },
+    {
+      "id": 2,
+      "title": "user_model",
+      "result": "User 모델 구현 완료. 필드: id, email, password_hash, created_at"
+    }
+  ],
   "manifest": {
     "context": {
       "project_name": "Blog Platform",
@@ -800,42 +1033,52 @@ clari task pop
       "database": "PostgreSQL"
     },
     "design": {
-      "architecture": "Microservices",
+      "architecture": "Monolithic",
       "auth_method": "JWT",
       "api_style": "RESTful"
     },
-    "state": {
-      "current_project": "P001",
-      "current_phase": "PH002",
-      "current_task": "T042",
-      "next_task": "T043"
+    "feature": {
+      "id": 1,
+      "name": "로그인",
+      "spec": "JWT 기반 인증. Access token 1시간, Refresh token 7일..."
     },
     "memos": [
       {
+        "scope": "project",
         "key": "jwt_security",
-        "data": {
-          "value": "Use httpOnly cookies for refresh tokens",
-          "priority": 1,
-          "summary": "JWT security best practice"
-        }
+        "value": "Use httpOnly cookies for refresh tokens"
+      },
+      {
+        "scope": "feature",
+        "scope_id": 1,
+        "key": "token_expiry",
+        "value": "Access 1h, Refresh 7d"
       }
     ]
   }
 }
 ```
 
-**에러** (task 없음):
+**응답** (task 없음):
 ```json
 {
   "success": false,
   "error": "No pending tasks",
-  "message": "All tasks completed"
+  "message": "All tasks completed or blocked by dependencies"
 }
 ```
 
+**Manifest 포함 내용**:
+1. `dependencies`: 의존 Task들의 `result` (핵심!)
+2. `context`: 프로젝트 컨텍스트
+3. `tech`: 기술 스택
+4. `design`: 설계 결정
+5. `feature`: 현재 Feature 정보 및 spec
+6. `memos`: priority 1인 메모만
+
 ---
 
-### clari start
+### clari task start
 
 **설명**: Task 실행 시작 (pending → doing)
 
@@ -853,7 +1096,7 @@ clari task start <task_id>
 ```json
 {
   "success": true,
-  "task_id": "T042",
+  "task_id": 3,
   "status": "doing",
   "started_at": "2026-02-02T10:30:00Z",
   "message": "Task started"
@@ -864,7 +1107,7 @@ clari task start <task_id>
 ```json
 {
   "success": false,
-  "error": "Task not found: T999"
+  "error": "Task not found: 999"
 }
 ```
 
@@ -876,14 +1119,24 @@ clari task start <task_id>
 }
 ```
 
+```json
+{
+  "success": false,
+  "error": "Task dependencies not resolved",
+  "blocked_by": [
+    {"id": 2, "title": "user_model", "status": "pending"}
+  ]
+}
+```
+
 **예시**:
 ```bash
-clari task start T042
+clari task start 3
 ```
 
 ---
 
-### clari complete
+### clari task complete
 
 **설명**: Task 완료 처리 (doing → done)
 
@@ -895,25 +1148,23 @@ clari task complete <task_id> '<json>'
 **JSON 포맷**:
 ```json
 {
-  "result": "success",
-  "notes": "Implemented login, logout, and refresh endpoints. All tests passing.",
-  "duration": "2.5h",
-  "files_created": [
-    "src/api/auth.py",
-    "tests/test_auth.py"
-  ],
-  "commits": ["a1b2c3d"]
+  "result": "인증 서비스 구현 완료. login(), logout(), refresh() 메서드 포함. JWT 토큰 발급 및 검증 로직 구현."
 }
 ```
 
 **필수 필드**:
-- `result`: 결과 설명
+- `result`: 결과 요약 (의존하는 Task에 전달됨)
+
+**result의 중요성**:
+- Task 완료 시 `result`에 결과 요약 저장
+- 의존하는 Task 실행 시 이 `result`가 `dependencies`에 포함됨
+- 다음 Task가 이전 Task의 결과를 알 수 있음
 
 **응답**:
 ```json
 {
   "success": true,
-  "task_id": "T042",
+  "task_id": 3,
   "status": "done",
   "completed_at": "2026-02-02T13:00:00Z",
   "message": "Task completed successfully"
@@ -931,16 +1182,14 @@ clari task complete <task_id> '<json>'
 
 **예시**:
 ```bash
-clari task complete T042 '{
-  "result": "success",
-  "notes": "All endpoints implemented and tested",
-  "duration": "2h"
+clari task complete 3 '{
+  "result": "auth_service 구현 완료. JWT 기반 login/logout/refresh 구현. 토큰 만료: access 1h, refresh 7d"
 }'
 ```
 
 ---
 
-### clari fail
+### clari task fail
 
 **설명**: Task 실패 처리 (doing → failed)
 
@@ -953,16 +1202,7 @@ clari task fail <task_id> '<json>'
 ```json
 {
   "error": "Database connection failed",
-  "details": "Connection timeout after 30s. Database server unreachable.",
-  "retry_possible": true,
-  "blockers": [
-    "Need database server credentials",
-    "VPN connection required"
-  ],
-  "attempted_solutions": [
-    "Checked connection string",
-    "Verified firewall rules"
-  ]
+  "details": "Connection timeout after 30s. Database server unreachable."
 }
 ```
 
@@ -973,7 +1213,7 @@ clari task fail <task_id> '<json>'
 ```json
 {
   "success": true,
-  "task_id": "T042",
+  "task_id": 3,
   "status": "failed",
   "failed_at": "2026-02-02T11:00:00Z",
   "message": "Task marked as failed"
@@ -982,10 +1222,9 @@ clari task fail <task_id> '<json>'
 
 **예시**:
 ```bash
-clari task fail T042 '{
-  "error": "API rate limit exceeded",
-  "details": "External auth service rate limit reached",
-  "retry_possible": true
+clari task fail 3 '{
+  "error": "External API timeout",
+  "details": "Auth0 API did not respond within 30s"
 }'
 ```
 
@@ -1004,41 +1243,216 @@ clari task status
 ```json
 {
   "summary": {
-    "total": 100,
-    "pending": 45,
-    "doing": 3,
-    "done": 50,
-    "failed": 2
+    "total": 42,
+    "pending": 25,
+    "doing": 1,
+    "done": 15,
+    "failed": 1
   },
-  "progress": 50,
-  "current_phase": {
-    "id": "PH002",
-    "name": "API Design",
-    "tasks": {
-      "total": 8,
-      "done": 3,
-      "progress": 37.5
+  "progress": 35.7,
+  "by_feature": [
+    {
+      "id": 1,
+      "name": "로그인",
+      "total": 4,
+      "done": 4,
+      "progress": 100
+    },
+    {
+      "id": 2,
+      "name": "결제",
+      "total": 3,
+      "done": 1,
+      "progress": 33.3
     }
-  },
+  ],
   "current_task": {
-    "id": "T042",
-    "title": "Implement Auth API",
+    "id": 6,
+    "title": "payment_model",
+    "feature": "결제",
     "status": "doing",
-    "started_at": "2026-02-02T10:30:00Z",
-    "duration": "0.5h"
+    "started_at": "2026-02-02T10:30:00Z"
   },
   "failed_tasks": [
     {
-      "id": "T015",
-      "title": "Setup database",
-      "error": "Connection failed"
-    },
-    {
-      "id": "T028",
-      "title": "Deploy to staging",
-      "error": "Build failed"
+      "id": 10,
+      "title": "external_auth",
+      "error": "API timeout"
     }
   ]
+}
+```
+
+---
+
+## Edge 관리
+
+### clari edge add
+
+**설명**: 의존성(Edge) 추가
+
+**사용법**:
+```bash
+# Task 간 의존성
+clari edge add --from <task_id> --to <task_id>
+
+# Feature 간 의존성
+clari edge add --feature --from <feature_id> --to <feature_id>
+```
+
+**의미**:
+- `--from A --to B`: A가 B에 의존 (B가 먼저 완료되어야 함)
+
+**응답** (Task Edge):
+```json
+{
+  "success": true,
+  "type": "task",
+  "from_id": 3,
+  "to_id": 2,
+  "message": "Task edge created: auth_service depends on user_model"
+}
+```
+
+**응답** (Feature Edge):
+```json
+{
+  "success": true,
+  "type": "feature",
+  "from_id": 2,
+  "to_id": 1,
+  "message": "Feature edge created: 결제 depends on 로그인"
+}
+```
+
+**에러** (순환 의존성):
+```json
+{
+  "success": false,
+  "error": "Circular dependency detected",
+  "cycle": [3, 2, 1, 3]
+}
+```
+
+**예시**:
+```bash
+# user_model이 user_table_sql에 의존
+clari edge add --from 2 --to 1
+
+# 결제 Feature가 로그인 Feature에 의존
+clari edge add --feature --from 2 --to 1
+```
+
+---
+
+### clari edge list
+
+**설명**: 의존성 목록 조회
+
+**사용법**:
+```bash
+clari edge list                    # 전체
+clari edge list --feature          # Feature Edge만
+clari edge list --task             # Task Edge만
+clari edge list --feature 1        # 특정 Feature 내 Task Edge
+```
+
+**응답**:
+```json
+{
+  "feature_edges": [
+    {
+      "from": {"id": 2, "name": "결제"},
+      "to": {"id": 1, "name": "로그인"}
+    }
+  ],
+  "task_edges": [
+    {
+      "from": {"id": 2, "title": "user_model"},
+      "to": {"id": 1, "title": "user_table_sql"}
+    },
+    {
+      "from": {"id": 3, "title": "auth_service"},
+      "to": {"id": 2, "title": "user_model"}
+    },
+    {
+      "from": {"id": 6, "title": "payment_model"},
+      "to": {"id": 5, "title": "payment_table_sql"}
+    },
+    {
+      "from": {"id": 6, "title": "payment_model"},
+      "to": {"id": 2, "title": "user_model"}
+    }
+  ],
+  "total_feature_edges": 1,
+  "total_task_edges": 4
+}
+```
+
+---
+
+### clari edge infer --feature
+
+**설명**: Feature 내 Task Edge LLM 추론
+
+**사용법**:
+```bash
+clari edge infer --feature <feature_id>
+```
+
+**동작**:
+1. Feature 내 Task 목록을 LLM에 전달
+2. LLM이 Task 간 의존성 분석
+3. Edge 목록 반환 및 저장
+
+**응답**:
+```json
+{
+  "success": true,
+  "feature_id": 1,
+  "feature_name": "로그인",
+  "edges_created": [
+    {"from": 2, "to": 1, "reason": "user_model needs user_table_sql schema"},
+    {"from": 3, "to": 2, "reason": "auth_service uses user_model"},
+    {"from": 4, "to": 3, "reason": "login_api calls auth_service"}
+  ],
+  "total": 3,
+  "message": "Task edges inferred successfully"
+}
+```
+
+**예시**:
+```bash
+clari edge infer --feature 1
+clari edge infer --feature 2
+```
+
+---
+
+### clari edge infer --project
+
+**설명**: Feature 간 Edge LLM 추론
+
+**사용법**:
+```bash
+clari edge infer --project
+```
+
+**동작**:
+1. 전체 Feature 목록을 LLM에 전달
+2. LLM이 Feature 간 의존성 분석
+3. Feature Edge 목록 반환 및 저장
+
+**응답**:
+```json
+{
+  "success": true,
+  "edges_created": [
+    {"from": 2, "to": 1, "reason": "결제 requires 로그인 for user authentication"},
+    {"from": 3, "to": 1, "reason": "블로그 requires 로그인 for post authorship"}
+  ],
+  "total": 2,
+  "message": "Feature edges inferred successfully"
 }
 ```
 
@@ -1053,32 +1467,37 @@ clari task status
 **사용법**:
 ```bash
 # Project 전역
-clari memo set <key> '<json>'
+clari memo set '<json>'
 
-# Phase 귀속
-clari memo set <phase_id>:<key> '<json>'
+# Feature 귀속
+clari memo set <feature_id>:<key> '<json>'
 
 # Task 귀속
-clari memo set <phase_id>:<task_id>:<key> '<json>'
+clari memo set <feature_id>:<task_id>:<key> '<json>'
 ```
 
 **JSON 포맷**:
 ```json
 {
+  "key": "jwt_security",
   "value": "Use httpOnly cookies for refresh tokens to prevent XSS attacks",
-  "priority": 1,
-  "summary": "JWT security best practice",
-  "tags": ["security", "jwt", "cookies"]
+  "priority": 1
 }
 ```
 
 **필수 필드**:
+- `key`: 메모 키
 - `value`: 메모 내용
 
 **선택 필드**:
 - `priority`: 1 (중요), 2 (보통), 3 (사소함) - 기본: 2
-- `summary`: 간단한 요약
-- `tags`: 태그 배열
+- `feature`: Feature ID (영역 지정용)
+- `task`: Task ID (영역 지정용)
+
+**Priority 의미**:
+- `1`: 중요 - manifest에 자동 포함
+- `2`: 보통
+- `3`: 사소함
 
 **응답**:
 ```json
@@ -1094,23 +1513,22 @@ clari memo set <phase_id>:<task_id>:<key> '<json>'
 **예시**:
 ```bash
 # Project 전역
-clari memo set jwt_best_practice '{
+clari memo set '{
+  "key": "jwt_best_practice",
   "value": "Always use httpOnly cookies",
-  "priority": 1,
-  "summary": "Security best practice"
+  "priority": 1
 }'
 
-# Phase 귀속
-clari memo set PH002:api_conventions '{
+# Feature 귀속
+clari memo set 1:api_conventions '{
   "value": "Use plural nouns for REST resources",
   "priority": 1
 }'
 
 # Task 귀속
-clari memo set PH002:T042:implementation_notes '{
+clari memo set 1:3:implementation_notes '{
   "value": "Used bcrypt with 12 rounds for password hashing",
-  "priority": 2,
-  "tags": ["security", "password"]
+  "priority": 2
 }'
 ```
 
@@ -1125,11 +1543,11 @@ clari memo set PH002:T042:implementation_notes '{
 # Project 전역
 clari memo get <key>
 
-# Phase 귀속
-clari memo get <phase_id>:<key>
+# Feature 귀속
+clari memo get <feature_id>:<key>
 
 # Task 귀속
-clari memo get <phase_id>:<task_id>:<key>
+clari memo get <feature_id>:<task_id>:<key>
 ```
 
 **응답**:
@@ -1139,9 +1557,7 @@ clari memo get <phase_id>:<task_id>:<key>
   "key": "jwt_security",
   "data": {
     "value": "Use httpOnly cookies for refresh tokens",
-    "priority": 1,
-    "summary": "JWT security best practice",
-    "tags": ["security", "jwt"]
+    "priority": 1
   },
   "created_at": "2026-02-02T10:00:00Z",
   "updated_at": "2026-02-02T10:00:00Z"
@@ -1159,8 +1575,8 @@ clari memo get <phase_id>:<task_id>:<key>
 **예시**:
 ```bash
 clari memo get jwt_best_practice
-clari memo get PH002:api_conventions
-clari memo get PH002:T042:implementation_notes
+clari memo get 1:api_conventions
+clari memo get 1:3:implementation_notes
 ```
 
 ---
@@ -1174,11 +1590,11 @@ clari memo get PH002:T042:implementation_notes
 # 전체
 clari memo list
 
-# Phase 메모만
-clari memo list <phase_id>
+# Feature 메모만
+clari memo list <feature_id>
 
 # Task 메모만
-clari memo list <phase_id>:<task_id>
+clari memo list <feature_id>:<task_id>
 ```
 
 **응답** (전체):
@@ -1189,62 +1605,40 @@ clari memo list <phase_id>:<task_id>
       {
         "key": "jwt_security",
         "priority": 1,
-        "summary": "JWT security best practice",
+        "value": "Use httpOnly cookies...",
         "created_at": "2026-02-02T10:00:00Z"
-      },
-      {
-        "key": "postgres_optimization",
-        "priority": 2,
-        "summary": "Database indexing tips",
-        "created_at": "2026-02-02T11:00:00Z"
       }
     ],
-    "phase": {
-      "PH002": [
+    "feature": {
+      "1": [
         {
           "key": "api_conventions",
           "priority": 1,
-          "summary": "REST naming conventions",
+          "value": "Use plural nouns...",
           "created_at": "2026-02-02T12:00:00Z"
         }
       ]
     },
     "task": {
-      "PH002:T042": [
+      "1:3": [
         {
           "key": "implementation_notes",
           "priority": 2,
-          "summary": "Implementation details",
+          "value": "Used bcrypt...",
           "created_at": "2026-02-02T13:00:00Z"
         }
       ]
     }
   },
-  "total": 4
-}
-```
-
-**응답** (Phase):
-```json
-{
-  "scope": "phase",
-  "scope_id": "PH002",
-  "memos": [
-    {
-      "key": "api_conventions",
-      "priority": 1,
-      "summary": "REST naming conventions"
-    }
-  ],
-  "total": 1
+  "total": 3
 }
 ```
 
 **예시**:
 ```bash
 clari memo list
-clari memo list PH002
-clari memo list PH002:T042
+clari memo list 1
+clari memo list 1:3
 ```
 
 ---
@@ -1258,11 +1652,11 @@ clari memo list PH002:T042
 # Project 전역
 clari memo del <key>
 
-# Phase 귀속
-clari memo del <phase_id>:<key>
+# Feature 귀속
+clari memo del <feature_id>:<key>
 
 # Task 귀속
-clari memo del <phase_id>:<task_id>:<key>
+clari memo del <feature_id>:<task_id>:<key>
 ```
 
 **응답**:
@@ -1286,8 +1680,8 @@ clari memo del <phase_id>:<task_id>:<key>
 **예시**:
 ```bash
 clari memo del old_note
-clari memo del PH001:deprecated
-clari memo del PH002:T042:temp_note
+clari memo del 1:deprecated
+clari memo del 1:3:temp_note
 ```
 
 ---
@@ -1296,49 +1690,63 @@ clari memo del PH002:T042:temp_note
 
 ### 초기화 (1개)
 ```bash
-clari init <id> ["<desc>"]      # 프로젝트 폴더 및 환경 초기화
+clari init <id> ["<desc>"]         # 프로젝트 폴더 및 환경 초기화
 ```
 
 ### Project (6개)
 ```bash
-clari project set '<json>'      # 프로젝트 생성/업데이트
-clari project get               # 프로젝트 조회
-clari context set '<json>'      # Context 수정
-clari tech set '<json>'         # Tech 수정
-clari design set '<json>'       # Design 수정
-clari required                  # 필수 입력 확인
+clari project set '<json>'         # 프로젝트 생성/업데이트
+clari project get                  # 프로젝트 조회
+clari context set '<json>'         # Context 수정
+clari tech set '<json>'            # Tech 수정
+clari design set '<json>'          # Design 수정
+clari required                     # 필수 입력 확인
 ```
 
-### Project 실행 (2개)
+### Project 실행 (5개)
 ```bash
-clari project plan              # 전체 플래닝
-clari project start             # 전체 실행
+clari plan features                # Feature 목록 산출 (LLM)
+clari project plan                 # 전체 플래닝
+clari project start [--feature N]  # 전체/Feature 실행
+clari project stop                 # 실행 중단
+clari project status               # 실행 상태 조회
 ```
 
-### Phase (4개)
+### Feature (5개)
 ```bash
-clari phase create '<json>'     # Phase 생성
-clari phase list                # Phase 목록
-clari phase <id> plan           # Phase 플래닝
-clari phase <id> start          # Phase 실행
+clari feature list                 # Feature 목록
+clari feature add '<json>'         # Feature 추가
+clari feature <id> spec            # Feature spec 대화
+clari feature <id> tasks           # Task 생성 (LLM)
+clari feature <id> start           # Feature 실행
 ```
 
-### Task (6개)
+### Task (7개)
 ```bash
-clari task push '<json>'        # Task 추가
-clari task pop                  # Task 조회 (manifest 포함)
-clari task start <id>           # Task 시작
+clari task list [--feature N]      # Task 목록
+clari task add '<json>'            # Task 추가
+clari task pop                     # 다음 실행 가능 Task
+clari task start <id>              # Task 시작
 clari task complete <id> '<json>'  # Task 완료
 clari task fail <id> '<json>'      # Task 실패
-clari task status               # 진행 상황
+clari task status                  # 진행 상황
+```
+
+### Edge (4개)
+```bash
+clari edge add --from <id> --to <id>       # Task Edge 추가
+clari edge add --feature --from <id> --to <id>  # Feature Edge 추가
+clari edge list                            # Edge 목록
+clari edge infer --feature <id>            # Task Edge 추론 (LLM)
+clari edge infer --project                 # Feature Edge 추론 (LLM)
 ```
 
 ### Memo (4개)
 ```bash
-clari memo set <key> '<json>'   # Memo 저장
-clari memo get <key>            # Memo 조회
-clari memo list [<scope>]       # Memo 목록
-clari memo del <key>            # Memo 삭제
+clari memo set '<json>'            # Memo 저장
+clari memo get <key>               # Memo 조회
+clari memo list [<scope>]          # Memo 목록
+clari memo del <key>               # Memo 삭제
 ```
 
 ---
@@ -1368,45 +1776,71 @@ clari tech set '{...}'
 clari design set '{...}'
 ```
 
-### 2. Planning
+### 2. Planning (구조화된 LLM 호출)
 ```bash
-# 전체 프로젝트 플래닝
-clari project plan
+# Feature 목록 산출 (LLM 1회)
+clari plan features
 
-# Phase 생성
-clari phase create '{...}'
-clari phase create '{...}'
+# Feature별 Spec 수립 (대화형, Feature당 1회)
+clari feature 1 spec
+clari feature 2 spec
 
-# Task 생성
-clari task push '{...}'
-clari task push '{...}'
+# Feature 간 Edge 추론 (LLM 1회)
+clari edge infer --project
+
+# Feature별 Task 생성 (Feature당 1회)
+clari feature 1 tasks
+clari feature 2 tasks
+
+# Feature별 Task Edge 추론 (Feature당 1회)
+clari edge infer --feature 1
+clari edge infer --feature 2
 ```
 
-### 3. Execution
+### 3. Execution (자동화 모드)
 ```bash
-# 전체 실행
+# 전체 자동 실행
 clari project start
 
-# 또는 Phase별 실행
-clari phase PH001 start
-clari phase PH002 start
+# 또는 특정 Feature만
+clari project start --feature 1
 
-# Task 처리
-result = clari task pop
-clari task start result.task.id
-# ... 작업 ...
-clari task complete result.task.id '{...}'
+# 실행 전 순서 확인
+clari project start --dry-run
+
+# 실행 상태 확인
+clari project status
+
+# 필요시 중단
+clari project stop
 ```
 
-### 4. Memo 활용
+### 4. Execution (수동 모드)
 ```bash
-# 중요한 발견 저장
-clari memo set important_finding '{
-  "value": "...",
+# Task 조회 (의존성 해결된 것만)
+clari task pop
+
+# Task 시작
+clari task start 3
+
+# ... 작업 ...
+
+# Task 완료 (result 중요!)
+clari task complete 3 '{
+  "result": "auth_service 구현 완료. JWT 기반 인증."
+}'
+```
+
+### 5. Memo 활용
+```bash
+# 중요한 발견 저장 (priority 1)
+clari memo set '{
+  "key": "security_note",
+  "value": "Always validate JWT signature",
   "priority": 1
 }'
 
-# 다음 pop 시 자동 제공됨
+# 다음 task pop 시 manifest에 자동 포함됨
 ```
 
 ---
@@ -1430,7 +1864,9 @@ clari memo set important_finding '{
 - `NOT_FOUND`: 리소스 없음
 - `INVALID_STATUS`: 잘못된 상태 전이
 - `VALIDATION_ERROR`: Validation 실패
+- `CIRCULAR_DEPENDENCY`: 순환 의존성 감지
+- `DEPENDENCY_NOT_RESOLVED`: 의존성 미해결
 
 ---
 
-**Claritask Commands Reference v1.0**
+**Claritask Commands Reference v2.0**

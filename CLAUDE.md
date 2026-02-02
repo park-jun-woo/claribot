@@ -10,6 +10,16 @@ Go 언어 CLI 개발 전문가. Cobra 라이브러리와 SQLite를 사용한 고
 - **CLI Framework**: Cobra
 - **Database**: SQLite (mattn/go-sqlite3)
 
+## Summary Rule
+
+### Trigger 조건
+- 사용자가 명시적으로 '대화 저장해'라고 말하면 대화 요약 저장 절차를 시작한다.
+
+### Summary Process
+1. 대화 내용 전체를 `talks/` 일단 md로 저장한다.
+2. 적당한 라인씩 검토하며 불필요한 내용은 제거한다.
+3. 남은 내용 중에서 중요한 내용은 최대한 보존하고, 요약해도 괜찮은 덜 중요한 내용은 요약한다.
+
 ## Planning Rule
 
 ### Trigger 조건
@@ -70,7 +80,8 @@ claritask/
 │   ├── Claritask.md     # 프로젝트 스펙
 │   └── Commands.md      # 명령어 레퍼런스
 ├── tasks/               # 해야할 Task 문서 폴더
-└── finished/            # 완료한 Task 문서 폴더
+├── finished/            # 완료한 Task 문서 폴더
+└── talks/               # 요약 저장한 대화내역
 ```
 
 ## Coding Conventions
@@ -167,3 +178,4 @@ func outputJSON(v interface{}) {
 ## References
 - specs/* - 전체 요구사항 명세서
 - tasks/* - 구현 계획 Task 파일들
+- talks/* - 사용자와 클로드 코드의 과거 대화 내용
