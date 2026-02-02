@@ -131,5 +131,5 @@ CREATE TABLE IF NOT EXISTS memos (
 ```
 
 ## 참조
-- `specs/Talos.md` - 데이터베이스 스키마 섹션
+- `specs/Claritask.md` - 데이터베이스 스키마 섹션
 - `internal/model/models.go` - 모델 정의

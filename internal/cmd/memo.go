@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"parkjunwoo.com/talos/internal/service"
+	"parkjunwoo.com/claritask/internal/service"
 )
 
 var memoCmd = &cobra.Command{

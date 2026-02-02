@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"parkjunwoo.com/talos/internal/service"
+	"parkjunwoo.com/claritask/internal/service"
 )
 
 var projectCmd = &cobra.Command{
@@ -152,7 +152,7 @@ func runProjectPlan(cmd *cobra.Command, args []string) error {
 		"ready":      true,
 		"project_id": project.ID,
 		"mode":       "planning",
-		"message":    "Project is ready for planning. Use 'talos phase create' to add phases.",
+		"message":    "Project is ready for planning. Use 'clari phase create' to add phases.",
 	})
 
 	return nil
@@ -194,7 +194,7 @@ func runProjectStart(cmd *cobra.Command, args []string) error {
 		outputJSON(map[string]interface{}{
 			"success": false,
 			"ready":   false,
-			"message": "No tasks found. Use 'talos project plan' and 'talos task push' to add tasks first.",
+			"message": "No tasks found. Use 'clari project plan' and 'clari task push' to add tasks first.",
 		})
 		return nil
 	}
@@ -216,7 +216,7 @@ func runProjectStart(cmd *cobra.Command, args []string) error {
 		"ready":    true,
 		"mode":     "execution",
 		"status":   taskStatus,
-		"message":  "Project is ready for execution. Use 'talos task pop' to get the next task.",
+		"message":  "Project is ready for execution. Use 'clari task pop' to get the next task.",
 		"progress": taskStatus.Progress,
 	})
 

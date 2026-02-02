@@ -1,7 +1,7 @@
 # TASK-DEV-017: Task 명령어
 
 ## 목적
-`talos task` 서브커맨드들 구현 (push, pop, start, complete, fail, status)
+`clari task` 서브커맨드들 구현 (push, pop, start, complete, fail, status)
 
 ## 구현 파일
 - `internal/cmd/task.go` - task 명령어들

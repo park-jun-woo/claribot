@@ -1,7 +1,7 @@
 # TASK-DEV-015: Required 명령어
 
 ## 목적
-`talos required` 명령어 구현 - 필수 입력 누락 항목 확인
+`clari required` 명령어 구현 - 필수 입력 누락 항목 확인
 
 ## 구현 파일
 - `internal/cmd/required.go` - required 명령어

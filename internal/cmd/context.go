@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"parkjunwoo.com/talos/internal/service"
+	"parkjunwoo.com/claritask/internal/service"
 )
 
 var contextCmd = &cobra.Command{

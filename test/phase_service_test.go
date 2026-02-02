@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"parkjunwoo.com/talos/internal/service"
+	"parkjunwoo.com/claritask/internal/service"
 )
 
 func TestCreatePhase(t *testing.T) {

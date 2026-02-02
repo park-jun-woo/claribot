@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"parkjunwoo.com/talos/internal/db"
-	"parkjunwoo.com/talos/internal/model"
+	"parkjunwoo.com/claritask/internal/db"
+	"parkjunwoo.com/claritask/internal/model"
 )
 
 // CreateProject creates a new project

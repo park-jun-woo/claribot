@@ -1,7 +1,7 @@
 # TASK-DEV-016: Phase 명령어
 
 ## 목적
-`talos phase` 서브커맨드들 구현 (create, list, plan, start)
+`clari phase` 서브커맨드들 구현 (create, list, plan, start)
 
 ## 구현 파일
 - `internal/cmd/phase.go` - phase 명령어들
@@ -52,8 +52,8 @@ var phaseListCmd = &cobra.Command{
 ### 4. phase <id> plan
 ```go
 // 동적 서브커맨드로 처리
-// talos phase 1 plan
-// talos phase 2 start
+// clari phase 1 plan
+// clari phase 2 start
 
 func runPhasePlan(phaseID int64) error {
     // Phase 확인

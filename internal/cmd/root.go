@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"parkjunwoo.com/talos/internal/db"
+	"parkjunwoo.com/claritask/internal/db"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "talos",
-	Short: "Task And LLM Operating System",
+	Use:   "clari",
+	Short: "Clear Task Management for Claude Code",
 	Long:  "Claude Code를 위한 장시간 자동 실행 시스템",
 }
 
@@ -26,7 +26,7 @@ func getDB() (*db.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	dbPath := filepath.Join(cwd, ".talos", "db")
+	dbPath := filepath.Join(cwd, ".claritask", "db")
 	return db.Open(dbPath)
 }
 

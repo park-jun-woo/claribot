@@ -1,4 +1,4 @@
-module parkjunwoo.com/talos
+module parkjunwoo.com/claritask
 
 go 1.21
 

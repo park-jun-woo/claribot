@@ -1,6 +1,6 @@
-# TALOS Commands Reference
+# Claritask Commands Reference
 
-모든 TALOS 명령어의 상세 사용법
+모든 Claritask 명령어의 상세 사용법
 
 ---
 
@@ -19,13 +19,13 @@
 
 ## 초기화
 
-### talos init
+### clari init
 
-**설명**: 새 프로젝트 폴더와 TALOS 환경 초기화
+**설명**: 새 프로젝트 폴더와 Claritask 환경 초기화
 
 **사용법**:
 ```bash
-talos init <project-id> ["<project-description>"]
+clari init <project-id> ["<project-description>"]
 ```
 
 **인자**:
@@ -35,15 +35,15 @@ talos init <project-id> ["<project-description>"]
 **동작**:
 1. 현재 위치에 `<project-id>` 이름의 폴더 생성
 2. 폴더 내 `CLAUDE.md` 파일 생성 (기본 템플릿)
-3. 폴더 내 `.talos/` 디렉토리 생성
-4. `.talos/db` SQLite 파일 생성 및 스키마 초기화
+3. 폴더 내 `.claritask/` 디렉토리 생성
+4. `.claritask/db` SQLite 파일 생성 및 스키마 초기화
 5. `projects` 테이블에 project id와 description 자동 입력
 
 **생성되는 구조**:
 ```
 <project-id>/
 ├── CLAUDE.md          # 프로젝트 설정 템플릿
-└── .talos/
+└── .claritask/
     └── db             # SQLite 데이터베이스
 ```
 
@@ -76,13 +76,13 @@ talos init <project-id> ["<project-description>"]
 **예시**:
 ```bash
 # description 없이
-talos init blog-api
+clari init blog-api
 
 # description 포함
-talos init blog-api "Developer blogging platform with markdown support"
+clari init blog-api "Developer blogging platform with markdown support"
 
 # 하이픈과 언더스코어 사용
-talos init my_ecommerce-api "E-commerce REST API"
+clari init my_ecommerce-api "E-commerce REST API"
 ```
 
 **CLAUDE.md 템플릿**:
@@ -98,23 +98,23 @@ talos init my_ecommerce-api "E-commerce REST API"
 - Database:
 
 ## Commands
-- `talos project set '<json>'` - 프로젝트 설정
-- `talos required` - 필수 입력 확인
-- `talos project plan` - 플래닝 시작
-- `talos project start` - 실행 시작
+- `clari project set '<json>'` - 프로젝트 설정
+- `clari required` - 필수 입력 확인
+- `clari project plan` - 플래닝 시작
+- `clari project start` - 실행 시작
 ```
 
 ---
 
 ## Project 관리
 
-### talos project set
+### clari project set
 
 **설명**: 프로젝트 생성 또는 전체 업데이트 (싱글톤)
 
 **사용법**:
 ```bash
-talos project set '<json>'
+clari project set '<json>'
 ```
 
 **JSON 포맷**:
@@ -189,7 +189,7 @@ talos project set '<json>'
 
 **예시**:
 ```bash
-talos project set '{
+clari project set '{
   "name": "Blog Platform",
   "description": "A modern blogging platform",
   "context": {
@@ -212,13 +212,13 @@ talos project set '{
 
 ---
 
-### talos project get
+### clari project get
 
 **설명**: 프로젝트 정보 조회
 
 **사용법**:
 ```bash
-talos project get
+clari project get
 ```
 
 **응답**:
@@ -259,13 +259,13 @@ talos project get
 
 ---
 
-### talos context set
+### clari context set
 
 **설명**: Context 정보만 수정
 
 **사용법**:
 ```bash
-talos context set '<json>'
+clari context set '<json>'
 ```
 
 **JSON 포맷**:
@@ -294,7 +294,7 @@ talos context set '<json>'
 
 **예시**:
 ```bash
-talos context set '{
+clari context set '{
   "project_name": "Blog Platform",
   "description": "Developer blogging platform",
   "deadline": "2026-04-01"
@@ -303,13 +303,13 @@ talos context set '{
 
 ---
 
-### talos tech set
+### clari tech set
 
 **설명**: Tech 정보만 수정
 
 **사용법**:
 ```bash
-talos tech set '<json>'
+clari tech set '<json>'
 ```
 
 **JSON 포맷**:
@@ -345,7 +345,7 @@ talos tech set '<json>'
 
 **예시**:
 ```bash
-talos tech set '{
+clari tech set '{
   "backend": "FastAPI",
   "frontend": "React",
   "database": "PostgreSQL",
@@ -355,13 +355,13 @@ talos tech set '{
 
 ---
 
-### talos design set
+### clari design set
 
 **설명**: Design 정보만 수정
 
 **사용법**:
 ```bash
-talos design set '<json>'
+clari design set '<json>'
 ```
 
 **JSON 포맷**:
@@ -394,7 +394,7 @@ talos design set '<json>'
 
 **예시**:
 ```bash
-talos design set '{
+clari design set '{
   "architecture": "Monolithic",
   "auth_method": "JWT",
   "api_style": "RESTful"
@@ -403,13 +403,13 @@ talos design set '{
 
 ---
 
-### talos required
+### clari required
 
 **설명**: 필수 입력 중 누락된 항목 확인
 
 **사용법**:
 ```bash
-talos required
+clari required
 ```
 
 **응답** (누락 시):
@@ -452,13 +452,13 @@ talos required
 
 ## Project 실행
 
-### talos project plan
+### clari project plan
 
 **설명**: 전체 프로젝트 플래닝 시작
 
 **사용법**:
 ```bash
-talos project plan
+clari project plan
 ```
 
 **동작**:
@@ -474,8 +474,8 @@ talos project plan
   "mode": "planning",
   "message": "Planning mode started. Create phases and tasks.",
   "next_steps": [
-    "Create phases: talos phase create '<json>'",
-    "Create tasks: talos task push '<json>'",
+    "Create phases: clari phase create '<json>'",
+    "Create tasks: clari task push '<json>'",
     "Write MASTER_PLAN.md"
   ]
 }
@@ -493,13 +493,13 @@ talos project plan
 
 ---
 
-### talos project start
+### clari project start
 
 **설명**: 전체 프로젝트 실행 시작
 
 **사용법**:
 ```bash
-talos project start
+clari project start
 ```
 
 **동작**:
@@ -532,13 +532,13 @@ talos project start
 
 ## Phase 관리
 
-### talos phase create
+### clari phase create
 
 **설명**: Phase 생성
 
 **사용법**:
 ```bash
-talos phase create '<json>'
+clari phase create '<json>'
 ```
 
 **JSON 포맷**:
@@ -568,7 +568,7 @@ talos phase create '<json>'
 
 **예시**:
 ```bash
-talos phase create '{
+clari phase create '{
   "project_id": "P001",
   "name": "Development",
   "description": "Implementation phase",
@@ -578,13 +578,13 @@ talos phase create '{
 
 ---
 
-### talos phase list
+### clari phase list
 
 **설명**: Phase 목록 조회
 
 **사용법**:
 ```bash
-talos phase list
+clari phase list
 ```
 
 **응답**:
@@ -623,13 +623,13 @@ talos phase list
 
 ---
 
-### talos phase <phase-id> plan
+### clari phase <phase-id> plan
 
 **설명**: 특정 Phase 플래닝
 
 **사용법**:
 ```bash
-talos phase PH002 plan
+clari phase PH002 plan
 ```
 
 **동작**:
@@ -658,13 +658,13 @@ talos phase PH002 plan
 
 ---
 
-### talos phase <phase-id> start
+### clari phase <phase-id> start
 
 **설명**: 특정 Phase 실행 시작
 
 **사용법**:
 ```bash
-talos phase PH002 start
+clari phase PH002 start
 ```
 
 **동작**:
@@ -695,13 +695,13 @@ talos phase PH002 start
 
 ## Task 관리
 
-### talos task push
+### clari task push
 
 **설명**: Task 추가 (validation 포함)
 
 **사용법**:
 ```bash
-talos task push '<json>'
+clari task push '<json>'
 ```
 
 **JSON 포맷**:
@@ -753,7 +753,7 @@ talos task push '<json>'
 
 **예시**:
 ```bash
-talos task push '{
+clari task push '{
   "phase_id": "PH002",
   "title": "Implement Login API",
   "content": "Create POST /api/auth/login endpoint with JWT",
@@ -764,13 +764,13 @@ talos task push '{
 
 ---
 
-### talos task pop
+### clari task pop
 
 **설명**: 다음 pending Task 조회 (Manifest 포함)
 
 **사용법**:
 ```bash
-talos task pop
+clari task pop
 ```
 
 **응답**:
@@ -835,13 +835,13 @@ talos task pop
 
 ---
 
-### talos task start
+### clari start
 
 **설명**: Task 실행 시작 (pending → doing)
 
 **사용법**:
 ```bash
-talos task start <task_id>
+clari task start <task_id>
 ```
 
 **동작**:
@@ -878,18 +878,18 @@ talos task start <task_id>
 
 **예시**:
 ```bash
-talos task start T042
+clari task start T042
 ```
 
 ---
 
-### talos task complete
+### clari complete
 
 **설명**: Task 완료 처리 (doing → done)
 
 **사용법**:
 ```bash
-talos task complete <task_id> '<json>'
+clari task complete <task_id> '<json>'
 ```
 
 **JSON 포맷**:
@@ -931,7 +931,7 @@ talos task complete <task_id> '<json>'
 
 **예시**:
 ```bash
-talos task complete T042 '{
+clari task complete T042 '{
   "result": "success",
   "notes": "All endpoints implemented and tested",
   "duration": "2h"
@@ -940,13 +940,13 @@ talos task complete T042 '{
 
 ---
 
-### talos task fail
+### clari fail
 
 **설명**: Task 실패 처리 (doing → failed)
 
 **사용법**:
 ```bash
-talos task fail <task_id> '<json>'
+clari task fail <task_id> '<json>'
 ```
 
 **JSON 포맷**:
@@ -982,7 +982,7 @@ talos task fail <task_id> '<json>'
 
 **예시**:
 ```bash
-talos task fail T042 '{
+clari task fail T042 '{
   "error": "API rate limit exceeded",
   "details": "External auth service rate limit reached",
   "retry_possible": true
@@ -991,13 +991,13 @@ talos task fail T042 '{
 
 ---
 
-### talos task status
+### clari task status
 
 **설명**: 전체 Task 진행 상황 조회
 
 **사용법**:
 ```bash
-talos task status
+clari task status
 ```
 
 **응답**:
@@ -1046,20 +1046,20 @@ talos task status
 
 ## Memo 관리
 
-### talos memo set
+### clari memo set
 
 **설명**: Memo 저장
 
 **사용법**:
 ```bash
 # Project 전역
-talos memo set <key> '<json>'
+clari memo set <key> '<json>'
 
 # Phase 귀속
-talos memo set <phase_id>:<key> '<json>'
+clari memo set <phase_id>:<key> '<json>'
 
 # Task 귀속
-talos memo set <phase_id>:<task_id>:<key> '<json>'
+clari memo set <phase_id>:<task_id>:<key> '<json>'
 ```
 
 **JSON 포맷**:
@@ -1094,20 +1094,20 @@ talos memo set <phase_id>:<task_id>:<key> '<json>'
 **예시**:
 ```bash
 # Project 전역
-talos memo set jwt_best_practice '{
+clari memo set jwt_best_practice '{
   "value": "Always use httpOnly cookies",
   "priority": 1,
   "summary": "Security best practice"
 }'
 
 # Phase 귀속
-talos memo set PH002:api_conventions '{
+clari memo set PH002:api_conventions '{
   "value": "Use plural nouns for REST resources",
   "priority": 1
 }'
 
 # Task 귀속
-talos memo set PH002:T042:implementation_notes '{
+clari memo set PH002:T042:implementation_notes '{
   "value": "Used bcrypt with 12 rounds for password hashing",
   "priority": 2,
   "tags": ["security", "password"]
@@ -1116,20 +1116,20 @@ talos memo set PH002:T042:implementation_notes '{
 
 ---
 
-### talos memo get
+### clari memo get
 
 **설명**: Memo 조회
 
 **사용법**:
 ```bash
 # Project 전역
-talos memo get <key>
+clari memo get <key>
 
 # Phase 귀속
-talos memo get <phase_id>:<key>
+clari memo get <phase_id>:<key>
 
 # Task 귀속
-talos memo get <phase_id>:<task_id>:<key>
+clari memo get <phase_id>:<task_id>:<key>
 ```
 
 **응답**:
@@ -1158,27 +1158,27 @@ talos memo get <phase_id>:<task_id>:<key>
 
 **예시**:
 ```bash
-talos memo get jwt_best_practice
-talos memo get PH002:api_conventions
-talos memo get PH002:T042:implementation_notes
+clari memo get jwt_best_practice
+clari memo get PH002:api_conventions
+clari memo get PH002:T042:implementation_notes
 ```
 
 ---
 
-### talos memo list
+### clari memo list
 
 **설명**: Memo 목록 조회
 
 **사용법**:
 ```bash
 # 전체
-talos memo list
+clari memo list
 
 # Phase 메모만
-talos memo list <phase_id>
+clari memo list <phase_id>
 
 # Task 메모만
-talos memo list <phase_id>:<task_id>
+clari memo list <phase_id>:<task_id>
 ```
 
 **응답** (전체):
@@ -1242,27 +1242,27 @@ talos memo list <phase_id>:<task_id>
 
 **예시**:
 ```bash
-talos memo list
-talos memo list PH002
-talos memo list PH002:T042
+clari memo list
+clari memo list PH002
+clari memo list PH002:T042
 ```
 
 ---
 
-### talos memo del
+### clari memo del
 
 **설명**: Memo 삭제
 
 **사용법**:
 ```bash
 # Project 전역
-talos memo del <key>
+clari memo del <key>
 
 # Phase 귀속
-talos memo del <phase_id>:<key>
+clari memo del <phase_id>:<key>
 
 # Task 귀속
-talos memo del <phase_id>:<task_id>:<key>
+clari memo del <phase_id>:<task_id>:<key>
 ```
 
 **응답**:
@@ -1285,9 +1285,9 @@ talos memo del <phase_id>:<task_id>:<key>
 
 **예시**:
 ```bash
-talos memo del old_note
-talos memo del PH001:deprecated
-talos memo del PH002:T042:temp_note
+clari memo del old_note
+clari memo del PH001:deprecated
+clari memo del PH002:T042:temp_note
 ```
 
 ---
@@ -1296,49 +1296,49 @@ talos memo del PH002:T042:temp_note
 
 ### 초기화 (1개)
 ```bash
-talos init <id> ["<desc>"]      # 프로젝트 폴더 및 환경 초기화
+clari init <id> ["<desc>"]      # 프로젝트 폴더 및 환경 초기화
 ```
 
 ### Project (6개)
 ```bash
-talos project set '<json>'      # 프로젝트 생성/업데이트
-talos project get               # 프로젝트 조회
-talos context set '<json>'      # Context 수정
-talos tech set '<json>'         # Tech 수정
-talos design set '<json>'       # Design 수정
-talos required                  # 필수 입력 확인
+clari project set '<json>'      # 프로젝트 생성/업데이트
+clari project get               # 프로젝트 조회
+clari context set '<json>'      # Context 수정
+clari tech set '<json>'         # Tech 수정
+clari design set '<json>'       # Design 수정
+clari required                  # 필수 입력 확인
 ```
 
 ### Project 실행 (2개)
 ```bash
-talos project plan              # 전체 플래닝
-talos project start             # 전체 실행
+clari project plan              # 전체 플래닝
+clari project start             # 전체 실행
 ```
 
 ### Phase (4개)
 ```bash
-talos phase create '<json>'     # Phase 생성
-talos phase list                # Phase 목록
-talos phase <id> plan           # Phase 플래닝
-talos phase <id> start          # Phase 실행
+clari phase create '<json>'     # Phase 생성
+clari phase list                # Phase 목록
+clari phase <id> plan           # Phase 플래닝
+clari phase <id> start          # Phase 실행
 ```
 
 ### Task (6개)
 ```bash
-talos task push '<json>'        # Task 추가
-talos task pop                  # Task 조회 (manifest 포함)
-talos task start <id>           # Task 시작
-talos task complete <id> '<json>'  # Task 완료
-talos task fail <id> '<json>'      # Task 실패
-talos task status               # 진행 상황
+clari task push '<json>'        # Task 추가
+clari task pop                  # Task 조회 (manifest 포함)
+clari task start <id>           # Task 시작
+clari task complete <id> '<json>'  # Task 완료
+clari task fail <id> '<json>'      # Task 실패
+clari task status               # 진행 상황
 ```
 
 ### Memo (4개)
 ```bash
-talos memo set <key> '<json>'   # Memo 저장
-talos memo get <key>            # Memo 조회
-talos memo list [<scope>]       # Memo 목록
-talos memo del <key>            # Memo 삭제
+clari memo set <key> '<json>'   # Memo 저장
+clari memo get <key>            # Memo 조회
+clari memo list [<scope>]       # Memo 목록
+clari memo del <key>            # Memo 삭제
 ```
 
 ---
@@ -1348,7 +1348,7 @@ talos memo del <key>            # Memo 삭제
 ### 0. 프로젝트 초기화
 ```bash
 # 새 프로젝트 생성
-talos init my-project "My awesome project"
+clari init my-project "My awesome project"
 
 # 생성된 폴더로 이동
 cd my-project
@@ -1357,51 +1357,51 @@ cd my-project
 ### 1. 프로젝트 초기 설정
 ```bash
 # 필수 항목 확인
-talos required
+clari required
 
 # 전체 설정 (한 번에)
-talos project set '{...}'
+clari project set '{...}'
 
 # 또는 개별 설정
-talos context set '{...}'
-talos tech set '{...}'
-talos design set '{...}'
+clari context set '{...}'
+clari tech set '{...}'
+clari design set '{...}'
 ```
 
 ### 2. Planning
 ```bash
 # 전체 프로젝트 플래닝
-talos project plan
+clari project plan
 
 # Phase 생성
-talos phase create '{...}'
-talos phase create '{...}'
+clari phase create '{...}'
+clari phase create '{...}'
 
 # Task 생성
-talos task push '{...}'
-talos task push '{...}'
+clari task push '{...}'
+clari task push '{...}'
 ```
 
 ### 3. Execution
 ```bash
 # 전체 실행
-talos project start
+clari project start
 
 # 또는 Phase별 실행
-talos phase PH001 start
-talos phase PH002 start
+clari phase PH001 start
+clari phase PH002 start
 
 # Task 처리
-result = talos task pop
-talos task start result.task.id
+result = clari task pop
+clari task start result.task.id
 # ... 작업 ...
-talos task complete result.task.id '{...}'
+clari task complete result.task.id '{...}'
 ```
 
 ### 4. Memo 활용
 ```bash
 # 중요한 발견 저장
-talos memo set important_finding '{
+clari memo set important_finding '{
   "value": "...",
   "priority": 1
 }'
@@ -1433,4 +1433,4 @@ talos memo set important_finding '{
 
 ---
 
-**TALOS Commands Reference v1.0**
+**Claritask Commands Reference v1.0**

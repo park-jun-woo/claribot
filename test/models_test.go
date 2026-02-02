@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"parkjunwoo.com/talos/internal/model"
+	"parkjunwoo.com/claritask/internal/model"
 )
 
 func TestProjectStruct(t *testing.T) {

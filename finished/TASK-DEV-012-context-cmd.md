@@ -1,7 +1,7 @@
 # TASK-DEV-012: Context 명령어
 
 ## 목적
-`talos context set '<json>'` 명령어 구현
+`clari context set '<json>'` 명령어 구현
 
 ## 구현 파일
 - `internal/cmd/context.go` - context 명령어

@@ -1,7 +1,7 @@
 # TASK-DEV-013: Tech 명령어
 
 ## 목적
-`talos tech set '<json>'` 명령어 구현
+`clari tech set '<json>'` 명령어 구현
 
 ## 구현 파일
 - `internal/cmd/tech.go` - tech 명령어

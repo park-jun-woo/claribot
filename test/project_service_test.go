@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"parkjunwoo.com/talos/internal/db"
-	"parkjunwoo.com/talos/internal/service"
+	"parkjunwoo.com/claritask/internal/db"
+	"parkjunwoo.com/claritask/internal/service"
 )
 
 func setupTestDB(t *testing.T) (*db.DB, func()) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "talos-test-*")
+	tmpDir, err := os.MkdirTemp("", "claritask-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}

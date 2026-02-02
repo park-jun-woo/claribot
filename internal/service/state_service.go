@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"parkjunwoo.com/talos/internal/db"
+	"parkjunwoo.com/claritask/internal/db"
 )
 
 // State key constants

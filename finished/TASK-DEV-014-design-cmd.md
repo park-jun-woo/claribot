@@ -1,7 +1,7 @@
 # TASK-DEV-014: Design 명령어
 
 ## 목적
-`talos design set '<json>'` 명령어 구현
+`clari design set '<json>'` 명령어 구현
 
 ## 구현 파일
 - `internal/cmd/design.go` - design 명령어

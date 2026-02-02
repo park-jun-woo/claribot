@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"parkjunwoo.com/talos/internal/service"
+	"parkjunwoo.com/claritask/internal/service"
 )
 
 var phaseCmd = &cobra.Command{
@@ -158,7 +158,7 @@ func runPhasePlan(cmd *cobra.Command, args []string) error {
 		"name":     phase.Name,
 		"status":   phase.Status,
 		"mode":     "planning",
-		"message":  fmt.Sprintf("Phase '%s' is ready for planning. Use 'talos task push' to add tasks.", phase.Name),
+		"message":  fmt.Sprintf("Phase '%s' is ready for planning. Use 'clari task push' to add tasks.", phase.Name),
 	})
 
 	return nil
@@ -196,7 +196,7 @@ func runPhaseStart(cmd *cobra.Command, args []string) error {
 			"success":  false,
 			"phase_id": phaseID,
 			"name":     phase.Name,
-			"message":  "No tasks found in this phase. Use 'talos task push' to add tasks first.",
+			"message":  "No tasks found in this phase. Use 'clari task push' to add tasks first.",
 		})
 		return nil
 	}
@@ -236,7 +236,7 @@ func runPhaseStart(cmd *cobra.Command, args []string) error {
 		"mode":          "execution",
 		"pending_tasks": pending,
 		"total_tasks":   len(tasks),
-		"message":       fmt.Sprintf("Phase '%s' started. Use 'talos task pop' to get the next task.", phase.Name),
+		"message":       fmt.Sprintf("Phase '%s' started. Use 'clari task pop' to get the next task.", phase.Name),
 	})
 
 	return nil

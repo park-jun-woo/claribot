@@ -101,7 +101,7 @@ var exampleCmd = &cobra.Command{
 ```go
 func getDB() (*db.DB, error) {
     home, _ := os.UserHomeDir()
-    dbPath := filepath.Join(home, ".talos", "db")
+    dbPath := filepath.Join(home, ".claritask", "db")
     return db.Open(dbPath)
 }
 ```
@@ -116,8 +116,8 @@ func parseJSON(jsonStr string, v interface{}) error {
 ## Project Structure
 
 ```
-talos/
-├── cmd/talos/main.go    # 메인 진입점
+claritask/
+├── cmd/claritask/main.go    # 메인 진입점
 ├── internal/
 │   ├── cmd/             # Cobra 명령어
 │   ├── db/              # 데이터베이스 레이어

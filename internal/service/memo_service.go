@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"parkjunwoo.com/talos/internal/db"
-	"parkjunwoo.com/talos/internal/model"
+	"parkjunwoo.com/claritask/internal/db"
+	"parkjunwoo.com/claritask/internal/model"
 )
 
 // MemoSetInput represents input for setting a memo

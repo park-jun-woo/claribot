@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"parkjunwoo.com/talos/internal/db"
+	"parkjunwoo.com/claritask/internal/db"
 )
 
 func TestDBOpen(t *testing.T) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "talos-test-*")
+	tmpDir, err := os.MkdirTemp("", "claritask-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestDBOpen(t *testing.T) {
 
 func TestDBOpenCreatesDirectory(t *testing.T) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "talos-test-*")
+	tmpDir, err := os.MkdirTemp("", "claritask-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestDBOpenCreatesDirectory(t *testing.T) {
 
 func TestDBClose(t *testing.T) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "talos-test-*")
+	tmpDir, err := os.MkdirTemp("", "claritask-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestDBClose(t *testing.T) {
 
 func TestDBMigrate(t *testing.T) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "talos-test-*")
+	tmpDir, err := os.MkdirTemp("", "claritask-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestDBMigrate(t *testing.T) {
 
 func TestDBMigrateIdempotent(t *testing.T) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "talos-test-*")
+	tmpDir, err := os.MkdirTemp("", "claritask-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestParseTimeRoundTrip(t *testing.T) {
 
 func TestForeignKeysEnabled(t *testing.T) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "talos-test-*")
+	tmpDir, err := os.MkdirTemp("", "claritask-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -227,7 +227,7 @@ func TestForeignKeysEnabled(t *testing.T) {
 
 func TestDBMigrateTableSchema(t *testing.T) {
 	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "talos-test-*")
+	tmpDir, err := os.MkdirTemp("", "claritask-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}

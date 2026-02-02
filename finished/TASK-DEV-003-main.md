@@ -1,7 +1,7 @@
 # TASK-DEV-003: 메인 진입점
 
 ## 파일
-`cmd/talos/main.go`
+`cmd/claritask/main.go`
 
 ## 목표
 Cobra CLI 애플리케이션 메인 진입점 구현
@@ -14,7 +14,7 @@ package main
 
 import (
     "os"
-    "github.com/your/talos/internal/cmd"
+    "parkjunwoo.com/claritask/internal/cmd"
 )
 
 func main() {

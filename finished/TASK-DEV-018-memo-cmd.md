@@ -1,7 +1,7 @@
 # TASK-DEV-018: Memo 명령어
 
 ## 목적
-`talos memo` 서브커맨드들 구현 (set, get, list, del)
+`clari memo` 서브커맨드들 구현 (set, get, list, del)
 
 ## 구현 파일
 - `internal/cmd/memo.go` - memo 명령어들

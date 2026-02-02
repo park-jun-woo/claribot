@@ -1,7 +1,7 @@
 # TASK-DEV-010: Init 명령어
 
 ## 목적
-`talos init <project-id> ["<description>"]` 명령어 구현
+`clari init <project-id> ["<description>"]` 명령어 구현
 
 ## 구현 파일
 - `internal/cmd/init.go` - init 명령어
@@ -29,8 +29,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 
     // 1. projectID 유효성 검사 (영문 소문자, 숫자, -, _ 만)
     // 2. 폴더 생성 (이미 있으면 에러)
-    // 3. .talos/ 디렉토리 생성
-    // 4. .talos/db 파일 생성 및 스키마 초기화
+    // 3. .claritask/ 디렉토리 생성
+    // 4. .claritask/db 파일 생성 및 스키마 초기화
     // 5. projects 테이블에 프로젝트 등록
     // 6. CLAUDE.md 템플릿 생성
     // 7. 성공 JSON 출력
@@ -64,10 +64,10 @@ const claudeTemplate = `# %s
 - Database:
 
 ## Commands
-- ` + "`talos project set '<json>'`" + ` - 프로젝트 설정
-- ` + "`talos required`" + ` - 필수 입력 확인
-- ` + "`talos project plan`" + ` - 플래닝 시작
-- ` + "`talos project start`" + ` - 실행 시작
+- ` + "`clari project set '<json>'`" + ` - 프로젝트 설정
+- ` + "`clari required`" + ` - 필수 입력 확인
+- ` + "`clari project plan`" + ` - 플래닝 시작
+- ` + "`clari project start`" + ` - 실행 시작
 `
 ```
 
@@ -88,6 +88,6 @@ const claudeTemplate = `# %s
 ## 완료 기준
 - [ ] init 명령어 구현
 - [ ] projectID 유효성 검사
-- [ ] 폴더 및 .talos/db 생성
+- [ ] 폴더 및 .claritask/db 생성
 - [ ] CLAUDE.md 템플릿 생성
 - [ ] projects 테이블에 자동 등록

@@ -1,4 +1,4 @@
-# TALOS Project
+# Claritask Project
 
 ## Role
 
@@ -56,8 +56,8 @@ Go 언어 CLI 개발 전문가. Cobra 라이브러리와 SQLite를 사용한 고
 ## Project Structure
 
 ```
-talos/
-├── cmd/talos/           # 메인 진입점
+claritask/
+├── cmd/claritask/       # 메인 진입점
 │   ├── main.go
 ├── internal/
 │   ├── cmd/             # Cobra 명령어
@@ -67,7 +67,7 @@ talos/
 ├── test/
 ├── go.mod
 ├── specs/
-│   ├── Talos.md         # 프로젝트 스펙
+│   ├── Claritask.md     # 프로젝트 스펙
 │   └── Commands.md      # 명령어 레퍼런스
 ├── tasks/               # 해야할 Task 문서 폴더
 └── finished/            # 완료한 Task 문서 폴더
@@ -106,8 +106,8 @@ type Response struct {
 
 ## Database
 
-- 위치: `.talos/db`
-- 자동 생성: 첫 실행 시 또는 'talos init <project>'로 생성시
+- 위치: `.claritask/db`
+- 자동 생성: 첫 실행 시 또는 'clari init <project>'로 생성시
 - 마이그레이션: 앱 시작 시 자동
 
 ### Tables
@@ -139,7 +139,7 @@ var exampleCmd = &cobra.Command{
 ```go
 func getDB() (*db.DB, error) {
     home, _ := os.UserHomeDir()
-    dbPath := filepath.Join(home, ".talos", "db")
+    dbPath := filepath.Join(home, ".claritask", "db")
     return db.Open(dbPath)
 }
 ```

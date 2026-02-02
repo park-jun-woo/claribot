@@ -7,8 +7,8 @@ import (
 	"regexp"
 
 	"github.com/spf13/cobra"
-	"parkjunwoo.com/talos/internal/db"
-	"parkjunwoo.com/talos/internal/service"
+	"parkjunwoo.com/claritask/internal/db"
+	"parkjunwoo.com/claritask/internal/service"
 )
 
 var initCmd = &cobra.Command{
@@ -39,8 +39,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	projectPath := filepath.Join(cwd, projectID)
-	talosPath := filepath.Join(projectPath, ".talos")
-	dbPath := filepath.Join(talosPath, "db")
+	claritaskPath := filepath.Join(projectPath, ".claritask")
+	dbPath := filepath.Join(claritaskPath, "db")
 
 	// Check if directory already exists
 	if _, err := os.Stat(projectPath); !os.IsNotExist(err) {
@@ -49,7 +49,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create project directory
-	if err := os.MkdirAll(talosPath, 0755); err != nil {
+	if err := os.MkdirAll(claritaskPath, 0755); err != nil {
 		outputError(fmt.Errorf("create directory: %w", err))
 		return nil
 	}
@@ -116,8 +116,8 @@ const claudeTemplate = `# %s
 - Database:
 
 ## Commands
-- ` + "`talos project set '<json>'`" + ` - 프로젝트 설정
-- ` + "`talos required`" + ` - 필수 입력 확인
-- ` + "`talos project plan`" + ` - 플래닝 시작
-- ` + "`talos project start`" + ` - 실행 시작
+- ` + "`clari project set '<json>'`" + ` - 프로젝트 설정
+- ` + "`clari required`" + ` - 필수 입력 확인
+- ` + "`clari project plan`" + ` - 플래닝 시작
+- ` + "`clari project start`" + ` - 실행 시작
 `

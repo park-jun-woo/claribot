@@ -116,4 +116,4 @@ type Manifest struct {
 ```
 
 ## 참조
-- `specs/Talos.md` - 데이터베이스 스키마 섹션
+- `specs/Claritask.md` - 데이터베이스 스키마 섹션

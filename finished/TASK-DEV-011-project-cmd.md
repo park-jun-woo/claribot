@@ -1,7 +1,7 @@
 # TASK-DEV-011: Project 명령어
 
 ## 목적
-`talos project` 서브커맨드들 구현 (set, get, plan, start)
+`clari project` 서브커맨드들 구현 (set, get, plan, start)
 
 ## 구현 파일
 - `internal/cmd/project.go` - project 명령어들

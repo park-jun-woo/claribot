@@ -11,7 +11,7 @@ Cobra CLI Root 명령어 및 공통 유틸리티 구현
 ### 1. Root Command
 ```go
 var rootCmd = &cobra.Command{
-    Use:   "talos",
+    Use:   "clari",
     Short: "Task And LLM Operating System",
     Long:  "Claude Code를 위한 장시간 자동 실행 시스템",
 }
@@ -23,10 +23,10 @@ func Execute() error {
 
 ### 2. 공통 유틸리티
 ```go
-// getDB - 현재 디렉토리의 .talos/db 연결
+// getDB - 현재 디렉토리의 .claritask/db 연결
 func getDB() (*db.DB, error) {
     cwd, _ := os.Getwd()
-    dbPath := filepath.Join(cwd, ".talos", "db")
+    dbPath := filepath.Join(cwd, ".claritask", "db")
     return db.Open(dbPath)
 }
 

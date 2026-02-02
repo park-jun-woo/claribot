@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"parkjunwoo.com/talos/internal/db"
-	"parkjunwoo.com/talos/internal/model"
+	"parkjunwoo.com/claritask/internal/db"
+	"parkjunwoo.com/claritask/internal/model"
 )
 
 // PhaseCreateInput represents input for creating a phase
