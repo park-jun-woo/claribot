@@ -4,6 +4,24 @@
 
 ---
 
+## v0.0.9 (2026-02-03)
+
+| 문서 | 변경 내용 |
+|------|----------|
+| CLI/07-Feature.md | `clari feature add` 명령어에 `--name`, `--description` 플래그 추가 |
+| VSCode/05-FeaturesTab.md | Windows에서 WSL Terminal 사용으로 변경, CLI 플래그 방식 호출 |
+
+---
+
+## v0.0.8 (2026-02-03)
+
+| 문서 | 변경 내용 |
+|------|----------|
+| CLI/01-Overview.md | SQLite 라이브러리 변경 (modernc.org/sqlite, Pure Go), Windows 빌드 스크립트 추가 |
+| CLI/07-Feature.md | `clari feature delete`, `clari feature fdl` 명령어 추가 |
+
+---
+
 ## v0.0.7 (2026-02-03)
 
 | 문서 | 변경 내용 |
@@ -82,4 +100,4 @@
 
 ---
 
-*Claritask Specs History v0.0.7 - 2026-02-03*
+*Claritask Specs History v0.0.9 - 2026-02-03*

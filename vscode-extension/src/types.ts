@@ -119,6 +119,14 @@ export interface CreateResultMessage {
   error?: string;
 }
 
+export interface DeleteResultMessage {
+  type: 'deleteResult';
+  success: boolean;
+  table?: string;
+  id?: number;
+  error?: string;
+}
+
 export interface ExpertResultMessage {
   type: 'expertResult';
   success: boolean;
@@ -134,6 +142,7 @@ export type ExtensionMessage =
   | SaveResultMessage
   | EdgeResultMessage
   | CreateResultMessage
+  | DeleteResultMessage
   | ExpertResultMessage;
 
 // Webview Messages: Webview → Extension
@@ -174,6 +183,11 @@ export interface CreateFeatureMessage {
   description: string;
 }
 
+export interface DeleteFeatureMessage {
+  type: 'deleteFeature';
+  featureId: number;
+}
+
 export interface AssignExpertMessage {
   type: 'assignExpert';
   expertId: string;
@@ -201,6 +215,7 @@ export type WebviewMessage =
   | RemoveEdgeMessage
   | CreateTaskMessage
   | CreateFeatureMessage
+  | DeleteFeatureMessage
   | AssignExpertMessage
   | UnassignExpertMessage
   | CreateExpertMessage

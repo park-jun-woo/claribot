@@ -16,7 +16,7 @@ export function useSync(): SyncState {
     error: null,
   });
 
-  const { setData, addConflict, removePendingSave } = useStore();
+  const { setData, addConflict, removePendingSave, setSelectedFeature, selectedFeatureId } = useStore();
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent<MessageToWebview>) => {
@@ -67,6 +67,18 @@ export function useSync(): SyncState {
           }
           break;
 
+        case 'deleteResult':
+          if (message.success && message.table === 'features' && message.id === selectedFeatureId) {
+            setSelectedFeature(null);
+          }
+          if (!message.success && message.error) {
+            setState((prev) => ({
+              ...prev,
+              error: message.error!,
+            }));
+          }
+          break;
+
         case 'settingSaveResult':
           if (!message.success && message.error) {
             setState((prev) => ({
@@ -83,7 +95,7 @@ export function useSync(): SyncState {
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [setData, addConflict, removePendingSave]);
+  }, [setData, addConflict, removePendingSave, setSelectedFeature, selectedFeatureId]);
 
   return state;
 }
@@ -142,5 +154,12 @@ export function createFeature(name: string, description: string): void {
     type: 'createFeature',
     name,
     description,
+  });
+}
+
+export function deleteFeature(featureId: number): void {
+  postMessage({
+    type: 'deleteFeature',
+    featureId,
   });
 }

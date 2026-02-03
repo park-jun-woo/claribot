@@ -1,6 +1,6 @@
 # clari feature - Feature 관리
 
-> **현재 버전**: v0.0.7 ([변경이력](../HISTORY.md))
+> **현재 버전**: v0.0.9 ([변경이력](../HISTORY.md))
 
 ---
 
@@ -53,16 +53,23 @@ clari feature list
 새 Feature 추가 (Claude Code로 FDL 생성)
 
 ```bash
-clari feature add '<json>'
+# 플래그 방식 (권장)
+clari feature add --name "user_auth" --description "사용자 인증 시스템"
+clari feature add -n "user_auth" -d "사용자 인증 시스템"
+
+# JSON 방식
+clari feature add '{"name":"user_auth","description":"사용자 인증 시스템"}'
+
+# TTY Handover 없이 DB만 생성
+clari feature add --name "user_auth" --description "설명" --no-tty
 ```
 
-**JSON 포맷:**
-```json
-{
-  "name": "user_auth",
-  "description": "사용자 인증 시스템. JWT 기반 로그인/로그아웃, 회원가입 기능 포함."
-}
-```
+**플래그:**
+| 플래그 | 축약 | 설명 |
+|--------|------|------|
+| `--name` | `-n` | Feature 이름 |
+| `--description` | `-d` | Feature 설명 |
+| `--no-tty` | - | TTY Handover 건너뛰기 (DB만 생성) |
 
 **동작:**
 1. DB에 Feature 레코드 생성
@@ -256,4 +263,4 @@ clari feature fdl <id>
 
 ---
 
-*Claritask Commands Reference v0.0.7*
+*Claritask Commands Reference v0.0.9*

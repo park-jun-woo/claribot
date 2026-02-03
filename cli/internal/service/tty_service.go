@@ -6,14 +6,21 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"parkjunwoo.com/claritask/internal/db"
+	"parkjunwoo.com/claritask/internal/docs"
 	"parkjunwoo.com/claritask/internal/model"
 )
 
 // RunWithTTYHandover executes Claude with TTY handover
 func RunWithTTYHandover(systemPrompt, initialPrompt string, permissionMode string) error {
-	args := []string{}
+	return RunWithTTYHandoverEx(systemPrompt, initialPrompt, permissionMode, "")
+}
+
+// RunWithTTYHandoverEx executes Claude with TTY handover and optional completion file watching
+func RunWithTTYHandoverEx(systemPrompt, initialPrompt string, permissionMode string, completeFile string) error {
+	args := []string{"--dangerously-skip-permissions"}
 
 	if systemPrompt != "" {
 		args = append(args, "--system-prompt", systemPrompt)
@@ -28,7 +35,42 @@ func RunWithTTYHandover(systemPrompt, initialPrompt string, permissionMode strin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// If completion file is specified, watch for it
+	if completeFile != "" {
+		go watchCompleteFile(completeFile, cmd)
+	}
+
+	return cmd.Wait()
+}
+
+// watchCompleteFile watches for completion file and terminates the process
+func watchCompleteFile(completeFile string, cmd *exec.Cmd) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if cmd.ProcessState != nil {
+			// Process already finished
+			return
+		}
+
+		if _, err := os.Stat(completeFile); err == nil {
+			// Complete file exists, terminate Claude
+			fmt.Println("\n[Claritask] Completion detected. Closing session...")
+
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+
+			// Delete the complete file
+			os.Remove(completeFile)
+			return
+		}
+	}
 }
 
 // Phase1SystemPrompt returns system prompt for requirements gathering
@@ -214,28 +256,31 @@ func RunInteractiveInit(database *db.DB, projectID, projectName, description str
 
 // FDLGenerationSystemPrompt returns system prompt for FDL generation
 func FDLGenerationSystemPrompt() string {
-	return `You are in Claritask FDL Generation Mode.
+	return fmt.Sprintf(`You are in Claritask FDL Generation Mode.
 
 ROLE: Generate a Feature Definition Language (FDL) YAML file based on the feature description.
 
-FDL STRUCTURE:
-- feature: Feature name (snake_case)
-- description: Feature description
-- models: Data layer (database tables/models)
-- service: Logic layer (business logic functions)
-- api: Interface layer (API endpoints)
-- ui: Presentation layer (UI components)
+=== FDL SPECIFICATION ===
+%s
+=== END FDL SPECIFICATION ===
 
-IMPORTANT:
-1. Generate a complete FDL YAML file
-2. Save the FDL to: features/<feature-name>.fdl.yaml
-3. After saving, update the DB: clari fdl register features/<feature-name>.fdl.yaml
-4. Exit with /exit when done
+WORKFLOW:
+1. Analyze the feature description
+2. Design the 4-layer structure (models, service, api, ui)
+3. Generate a complete FDL YAML file
+4. Save to: features/<feature-name>.fdl.yaml
+
+COMPLETION:
+When FDL file is saved, create an empty file: .claritask/complete
+This signals that your work is done.
 
 CONSTRAINTS:
-- Follow the 4-layer structure (models, service, api, ui)
-- Use snake_case for feature names and function names
-- Be specific in field definitions and API contracts`
+- Follow the FDL specification exactly
+- Use snake_case for feature names
+- Use camelCase for service function names
+- Use PascalCase for model and component names
+- All api must have 'use:' field (wiring to service)
+- All ui actions must have API path`, docs.FDLSpec)
 }
 
 // RunFDLGenerationWithTTY runs FDL generation with TTY handover
@@ -244,6 +289,16 @@ func RunFDLGenerationWithTTY(database *db.DB, featureID int64, featureName, desc
 	fmt.Printf("   Feature: %s (ID: %d)\n", featureName, featureID)
 	fmt.Println("   Claude Code will generate FDL specification.")
 	fmt.Println()
+
+	// Ensure .claritask directory exists
+	claritaskDir := ".claritask"
+	if err := os.MkdirAll(claritaskDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .claritask directory: %w", err)
+	}
+
+	// Remove any existing complete file
+	completeFile := filepath.Join(claritaskDir, "complete")
+	os.Remove(completeFile)
 
 	// Get project context
 	var projectContext, techContext, designContext string
@@ -260,7 +315,10 @@ func RunFDLGenerationWithTTY(database *db.DB, featureID int64, featureName, desc
 	systemPrompt := FDLGenerationSystemPrompt()
 	initialPrompt := BuildFDLPrompt(featureID, featureName, description, projectContext, techContext, designContext)
 
-	err := RunWithTTYHandover(systemPrompt, initialPrompt, "acceptEdits")
+	err := RunWithTTYHandoverEx(systemPrompt, initialPrompt, "acceptEdits", completeFile)
+
+	// Cleanup complete file if it exists
+	os.Remove(completeFile)
 
 	fmt.Println()
 	fmt.Println("[Claritask] FDL Generation Session Ended.")
@@ -287,13 +345,11 @@ Description: %s
 
 ---
 
-Please generate a complete FDL YAML file for this feature.
+Generate a complete FDL YAML file for this feature.
 
 Output file: features/%s.fdl.yaml
 
-After generating, save the file and run:
-clari fdl register features/%s.fdl.yaml
-
-Then exit with /exit.
-`, featureID, name, description, projectContext, techContext, designContext, name, name)
+IMPORTANT: After saving the FDL file, create an empty file '.claritask/complete' to signal completion.
+Example: touch .claritask/complete
+`, featureID, name, description, projectContext, techContext, designContext, name)
 }

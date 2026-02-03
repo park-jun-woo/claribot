@@ -21,9 +21,9 @@ var featureListCmd = &cobra.Command{
 }
 
 var featureAddCmd = &cobra.Command{
-	Use:   "add '<json>'",
+	Use:   "add [json]",
 	Short: "Add a new feature and generate FDL via Claude Code",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runFeatureAdd,
 }
 
@@ -89,6 +89,8 @@ func init() {
 
 	// feature add flags
 	featureAddCmd.Flags().Bool("no-tty", false, "Skip TTY handover (just create DB record)")
+	featureAddCmd.Flags().StringP("name", "n", "", "Feature name")
+	featureAddCmd.Flags().StringP("description", "d", "", "Feature description")
 
 	// feature tasks flags
 	featureTasksCmd.Flags().Bool("generate", false, "Generate tasks using LLM (when no FDL)")
@@ -145,18 +147,26 @@ func runFeatureAdd(cmd *cobra.Command, args []string) error {
 	defer database.Close()
 
 	var input featureAddInput
-	if err := parseJSON(args[0], &input); err != nil {
-		outputError(fmt.Errorf("parse JSON: %w", err))
-		return nil
+
+	// Try flags first, then JSON argument
+	input.Name, _ = cmd.Flags().GetString("name")
+	input.Description, _ = cmd.Flags().GetString("description")
+
+	// If flags not provided, try JSON argument
+	if input.Name == "" && len(args) > 0 {
+		if err := parseJSON(args[0], &input); err != nil {
+			outputError(fmt.Errorf("parse JSON: %w", err))
+			return nil
+		}
 	}
 
 	if input.Name == "" {
-		outputError(fmt.Errorf("missing required field: name"))
+		outputError(fmt.Errorf("missing required field: name (use --name or JSON)"))
 		return nil
 	}
 
 	if input.Description == "" {
-		outputError(fmt.Errorf("missing required field: description"))
+		outputError(fmt.Errorf("missing required field: description (use --description or JSON)"))
 		return nil
 	}
 

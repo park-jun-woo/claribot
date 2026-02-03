@@ -135,6 +135,10 @@ export class CltEditorProvider implements vscode.CustomReadonlyEditorProvider {
         this.handleCreateFeature(message, database, webview, sync);
         break;
 
+      case 'deleteFeature':
+        this.handleDeleteFeature(message, database, webview, sync);
+        break;
+
       case 'saveContext':
         this.handleSaveContext(message, database, webview, sync);
         break;
@@ -302,20 +306,29 @@ export class CltEditorProvider implements vscode.CustomReadonlyEditorProvider {
     sync: SyncManager
   ): void {
     try {
-      // Prepare JSON input for CLI (escape single quotes for shell)
-      const input = JSON.stringify({
-        name: message.name,
-        description: message.description
-      });
-      const escapedInput = input.replace(/'/g, "'\\''");
+      // Escape for bash single quotes
+      const escapeName = message.name.replace(/'/g, "'\\''");
+      const escapeDesc = message.description.replace(/'/g, "'\\''");
+      const command = `~/bin/clari feature add --name '${escapeName}' --description '${escapeDesc}'`;
 
-      // Create Terminal for CLI execution (TTY Handover support)
+      // Create WSL Terminal for CLI execution (TTY Handover support)
+      // WSL provides better shell compatibility and Claude Code support
+      const isWindows = process.platform === 'win32';
+      const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+
       const terminal = vscode.window.createTerminal({
         name: 'Claritask - Create Feature',
-        cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath
+        shellPath: isWindows ? 'wsl.exe' : undefined,
       });
       terminal.show();
-      terminal.sendText(`clari feature add '${escapedInput}'`);
+
+      // For WSL, convert Windows path to WSL path and cd first
+      if (isWindows && workspacePath) {
+        const wslPath = windowsToWslPath(workspacePath);
+        terminal.sendText(`cd '${wslPath}' && ${command}`);
+      } else {
+        terminal.sendText(command);
+      }
 
       // Send notification to webview
       webview.postMessage({
@@ -329,6 +342,30 @@ export class CltEditorProvider implements vscode.CustomReadonlyEditorProvider {
     } catch (err) {
       webview.postMessage({
         type: 'createResult',
+        success: false,
+        error: String(err),
+      });
+    }
+  }
+
+  private handleDeleteFeature(
+    message: { featureId: number },
+    database: Database,
+    webview: vscode.Webview,
+    sync: SyncManager
+  ): void {
+    try {
+      database.deleteFeature(message.featureId);
+      webview.postMessage({
+        type: 'deleteResult',
+        success: true,
+        table: 'features',
+        id: message.featureId,
+      });
+      sync.refresh();
+    } catch (err) {
+      webview.postMessage({
+        type: 'deleteResult',
         success: false,
         error: String(err),
       });
@@ -810,4 +847,18 @@ function getNonce() {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
   return text;
+}
+
+/**
+ * Convert Windows path to WSL path
+ * C:\Users\mail\git\claritask → /mnt/c/Users/mail/git/claritask
+ */
+function windowsToWslPath(windowsPath: string): string {
+  const match = windowsPath.match(/^([A-Za-z]):\\(.*)$/);
+  if (match) {
+    const drive = match[1].toLowerCase();
+    const rest = match[2].replace(/\\/g, '/');
+    return `/mnt/${drive}/${rest}`;
+  }
+  return windowsPath;
 }

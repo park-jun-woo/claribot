@@ -1,6 +1,6 @@
 # VSCode Extension Features 탭
 
-> **현재 버전**: v0.0.7 ([변경이력](../HISTORY.md))
+> **현재 버전**: v0.0.9 ([변경이력](../HISTORY.md))
 
 ---
 
@@ -35,7 +35,9 @@
 ## Feature 관리 기능
 
 - Feature 목록 트리 뷰
-- Feature 추가/삭제
+- Feature 추가
+- Feature 삭제 (확인 다이얼로그 포함, 관련 Task/Edge 함께 삭제)
+- Feature 편집 (이름, 설명, 상태)
 - FDL 코드 표시 (읽기 전용, 파일 열기로 편집)
 - Task/Skeleton 생성 버튼
 
@@ -79,18 +81,29 @@
 ### CLI 호출 (Extension → CLI)
 
 ```typescript
-// Extension Host에서 CLI 실행
-import { spawn } from 'child_process';
-
+// Extension Host에서 WSL Terminal을 통해 CLI 실행
 async function createFeature(name: string, description: string) {
-  const input = JSON.stringify({ name, description });
+  // Escape for bash single quotes
+  const escapeName = name.replace(/'/g, "'\\''");
+  const escapeDesc = description.replace(/'/g, "'\\''");
+  const command = `~/bin/clari feature add --name '${escapeName}' --description '${escapeDesc}'`;
 
-  // Terminal에서 실행 (TTY Handover 지원)
-  const terminal = vscode.window.createTerminal('Claritask');
+  // Windows에서는 WSL Terminal 사용 (TTY Handover 지원)
+  const isWindows = process.platform === 'win32';
+  const terminal = vscode.window.createTerminal({
+    name: 'Claritask - Create Feature',
+    shellPath: isWindows ? 'wsl.exe' : undefined,
+    cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath
+  });
   terminal.show();
-  terminal.sendText(`clari feature add '${input}'`);
+  terminal.sendText(command);
 }
 ```
+
+**WSL 사용 이유:**
+- PowerShell의 복잡한 JSON escape 문제 해결
+- Linux 환경에서 Claude Code TTY Handover 안정적 동작
+- 통일된 shell 환경 (bash)
 
 ### 메시지 프로토콜
 
@@ -104,6 +117,9 @@ async function createFeature(name: string, description: string) {
     description: string
   }
 }
+
+// Feature 삭제 요청
+{ type: 'deleteFeature', featureId: number }
 
 // FDL 재생성 요청
 { type: 'regenerateFDL', featureId: number }
@@ -123,6 +139,15 @@ async function createFeature(name: string, description: string) {
   command: 'feature.add',
   success: boolean,
   featureId?: number,
+  error?: string
+}
+
+// Feature 삭제 결과
+{
+  type: 'deleteResult',
+  success: boolean,
+  table: 'features',
+  id: number,
   error?: string
 }
 ```
@@ -166,4 +191,4 @@ fdlWatcher.onDidDelete(uri => clearFDLFromDB(uri));
 
 ---
 
-*Claritask VSCode Extension Spec v0.0.7*
+*Claritask VSCode Extension Spec v0.0.9*

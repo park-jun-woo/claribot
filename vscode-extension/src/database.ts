@@ -505,4 +505,30 @@ export class Database {
     this.run('UPDATE features SET fdl = ?, fdl_hash = ? WHERE id = ?', ['', '', featureId]);
     this.save();
   }
+
+  deleteFeature(featureId: number): void {
+    // Get all task IDs for this feature first
+    const tasks = this.queryAll<{ id: number }>(
+      'SELECT id FROM tasks WHERE feature_id = ?',
+      [featureId]
+    );
+    const taskIds = tasks.map(t => t.id);
+
+    // Delete related task_edges first (before deleting tasks)
+    if (taskIds.length > 0) {
+      const placeholders = taskIds.map(() => '?').join(',');
+      this.run(
+        `DELETE FROM task_edges WHERE from_task_id IN (${placeholders}) OR to_task_id IN (${placeholders})`,
+        [...taskIds, ...taskIds]
+      );
+    }
+
+    // Delete feature_edges
+    this.run('DELETE FROM feature_edges WHERE from_feature_id = ? OR to_feature_id = ?', [featureId, featureId]);
+    // Delete tasks
+    this.run('DELETE FROM tasks WHERE feature_id = ?', [featureId]);
+    // Delete feature
+    this.run('DELETE FROM features WHERE id = ?', [featureId]);
+    this.save();
+  }
 }

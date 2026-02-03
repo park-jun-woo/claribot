@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { createFeature, saveFeature } from '../hooks/useSync';
+import { createFeature, saveFeature, deleteFeature } from '../hooks/useSync';
 import type { Feature } from '../types';
 
 export function FeatureList() {
@@ -116,6 +116,45 @@ function CreateFeatureForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+// Confirm Modal Component
+interface ConfirmModalProps {
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ConfirmModal({ title, message, confirmText = 'Delete', cancelText = 'Cancel', onConfirm, onCancel }: ConfirmModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-vscode-editor-bg border border-vscode-border rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="p-4 border-b border-vscode-border">
+          <h3 className="text-lg font-semibold">{title}</h3>
+        </div>
+        <div className="p-4">
+          <p className="text-sm opacity-80 whitespace-pre-line">{message}</p>
+        </div>
+        <div className="p-4 border-t border-vscode-border flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm border border-vscode-border rounded hover:bg-vscode-list-hover"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface FeatureDetailProps {
   featureId: number;
   isEditing: boolean;
@@ -127,6 +166,7 @@ function FeatureDetail({ featureId, isEditing, onEdit, onCancelEdit }: FeatureDe
   const { getFeature, getTasksForFeature } = useStore();
   const feature = getFeature(featureId);
   const tasks = getTasksForFeature(featureId);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   if (!feature) {
     return <div className="p-4">Feature not found</div>;
@@ -144,19 +184,43 @@ function FeatureDetail({ featureId, isEditing, onEdit, onCancelEdit }: FeatureDe
     failed: tasks.filter((t) => t.status === 'failed').length,
   };
 
+  const handleDeleteConfirm = () => {
+    deleteFeature(feature.id);
+    setShowDeleteModal(false);
+  };
+
   return (
     <div className="p-4">
+      {showDeleteModal && (
+        <ConfirmModal
+          title="Delete Feature"
+          message={`Are you sure you want to delete "${feature.name}"?\n\nThis will also delete all related tasks and edges.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
+
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold">{feature.name}</h2>
           <div className="text-sm opacity-70">ID: {feature.id}</div>
         </div>
-        <button
-          onClick={onEdit}
-          className="px-3 py-1 text-sm border border-vscode-border rounded hover:bg-vscode-list-hover"
-        >
-          Edit
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onEdit}
+            className="px-3 py-1 text-sm border border-vscode-border rounded hover:bg-vscode-list-hover"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="px-3 py-1 text-sm border border-red-600 text-red-400 rounded hover:bg-red-900"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">
