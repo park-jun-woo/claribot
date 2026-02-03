@@ -81,8 +81,10 @@ export class TTYSessionManager {
    * Create and track a new terminal
    */
   private createTerminal(id: string, command: string): vscode.Terminal {
+    const isWindows = process.platform === 'win32';
     const terminal = vscode.window.createTerminal({
       name: `Claritask: ${id}`,
+      shellPath: isWindows ? 'wsl.exe' : undefined,
     });
 
     this.activeSessions.set(id, terminal);

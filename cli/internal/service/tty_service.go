@@ -90,15 +90,33 @@ func RunWithTTYHandoverEx(systemPrompt, initialPrompt string, permissionMode str
 	}
 
 	// If completion file is specified, watch for it
+	// Use a channel to signal completion-based termination
+	completedChan := make(chan bool, 1)
 	if completeFile != "" {
-		go watchCompleteFile(completeFile, cmd)
+		go watchCompleteFileWithSignal(completeFile, cmd, completedChan)
 	}
 
-	return cmd.Wait()
+	waitErr := cmd.Wait()
+
+	// Check if process was killed due to completion detection
+	select {
+	case <-completedChan:
+		// Process was killed because completion file was detected - this is success
+		return nil
+	default:
+		// Process ended for other reasons
+		return waitErr
+	}
 }
 
 // watchCompleteFile watches for completion file and terminates the process
 func watchCompleteFile(completeFile string, cmd *exec.Cmd) {
+	watchCompleteFileWithSignal(completeFile, cmd, nil)
+}
+
+// watchCompleteFileWithSignal watches for completion file and signals before terminating
+// Note: Does NOT delete the complete file - caller is responsible for cleanup after reading
+func watchCompleteFileWithSignal(completeFile string, cmd *exec.Cmd, completedChan chan<- bool) {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -112,12 +130,16 @@ func watchCompleteFile(completeFile string, cmd *exec.Cmd) {
 			// Complete file exists, terminate Claude
 			fmt.Println("\n[Claritask] Completion detected. Closing session...")
 
+			// Signal that this is a completion-based termination (success)
+			if completedChan != nil {
+				completedChan <- true
+			}
+
 			if cmd.Process != nil {
 				cmd.Process.Kill()
 			}
 
-			// Delete the complete file
-			os.Remove(completeFile)
+			// Don't delete the file here - let caller read it first
 			return
 		}
 	}
@@ -321,7 +343,7 @@ WORKFLOW:
 4. Save to: features/<feature-name>.fdl.yaml
 
 COMPLETION:
-When FDL file is saved, create an empty file: .claritask/complete
+When FDL file is saved, create the completion file specified in the prompt.
 This signals that your work is done.
 
 CONSTRAINTS:
@@ -346,8 +368,8 @@ func RunFDLGenerationWithTTY(database *db.DB, featureID int64, featureName, desc
 		return fmt.Errorf("failed to create .claritask directory: %w", err)
 	}
 
-	// Remove any existing complete file
-	completeFile := filepath.Join(claritaskDir, "complete")
+	// Remove any existing complete file (with feature ID)
+	completeFile := filepath.Join(claritaskDir, fmt.Sprintf("complete-feature-%d.md", featureID))
 	os.Remove(completeFile)
 
 	// Get project context
@@ -363,7 +385,7 @@ func RunFDLGenerationWithTTY(database *db.DB, featureID int64, featureName, desc
 	}
 
 	systemPrompt := FDLGenerationSystemPrompt()
-	initialPrompt := BuildFDLPrompt(featureID, featureName, description, projectContext, techContext, designContext)
+	initialPrompt := BuildFDLPrompt(featureID, featureName, description, projectContext, techContext, designContext, completeFile)
 
 	err := RunWithTTYHandoverEx(systemPrompt, initialPrompt, "acceptEdits", completeFile)
 
@@ -377,12 +399,13 @@ func RunFDLGenerationWithTTY(database *db.DB, featureID int64, featureName, desc
 }
 
 // BuildFDLPrompt builds the initial prompt for FDL generation
-func BuildFDLPrompt(featureID int64, name, description, projectContext, techContext, designContext string) string {
+func BuildFDLPrompt(featureID int64, name, description, projectContext, techContext, designContext, completeFile string) string {
 	return fmt.Sprintf(`[CLARITASK FDL GENERATION]
 
 Feature ID: %d
 Feature Name: %s
 Description: %s
+Completion File: %s
 
 === Project Context ===
 %s
@@ -399,7 +422,7 @@ Generate a complete FDL YAML file for this feature.
 
 Output file: features/%s.fdl.yaml
 
-IMPORTANT: After saving the FDL file, create an empty file '.claritask/complete' to signal completion.
-Example: touch .claritask/complete
-`, featureID, name, description, projectContext, techContext, designContext, name)
+IMPORTANT: After saving the FDL file, create the completion file: %s
+Example: touch %s
+`, featureID, name, description, completeFile, projectContext, techContext, designContext, name, completeFile, completeFile)
 }

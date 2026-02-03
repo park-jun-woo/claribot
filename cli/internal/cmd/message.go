@@ -14,9 +14,9 @@ var messageCmd = &cobra.Command{
 }
 
 var messageSendCmd = &cobra.Command{
-	Use:   "send <content>",
+	Use:   "send [content]",
 	Short: "Send a modification request and convert to tasks",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runMessageSend,
 }
 
@@ -47,6 +47,7 @@ func init() {
 	messageCmd.AddCommand(messageDeleteCmd)
 
 	// send flags
+	messageSendCmd.Flags().StringP("content", "c", "", "Message content")
 	messageSendCmd.Flags().Int64P("feature", "f", 0, "Related feature ID")
 
 	// list flags
@@ -63,18 +64,23 @@ func runMessageSend(cmd *cobra.Command, args []string) error {
 	}
 	defer database.Close()
 
-	// Get current project
-	projectID, err := service.GetState(database, service.StateCurrentProject)
+	// Get project from DB directly (like feature.go)
+	project, err := service.GetProject(database)
 	if err != nil {
-		outputError(fmt.Errorf("get current project: %w", err))
-		return nil
-	}
-	if projectID == "" {
-		outputError(fmt.Errorf("no project selected. use 'clari project set <id>' first"))
+		outputError(fmt.Errorf("get project: %w", err))
 		return nil
 	}
 
-	content := args[0]
+	// Try --content flag first, then positional argument
+	content, _ := cmd.Flags().GetString("content")
+	if content == "" && len(args) > 0 {
+		content = args[0]
+	}
+	if content == "" {
+		outputError(fmt.Errorf("missing required field: content (use --content or positional argument)"))
+		return nil
+	}
+
 	featureID, _ := cmd.Flags().GetInt64("feature")
 
 	var featureIDPtr *int64
@@ -83,7 +89,7 @@ func runMessageSend(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create message
-	message, err := service.CreateMessage(database, projectID, featureIDPtr, content)
+	message, err := service.CreateMessage(database, project.ID, featureIDPtr, content)
 	if err != nil {
 		outputError(fmt.Errorf("create message: %w", err))
 		return nil
@@ -114,14 +120,10 @@ func runMessageList(cmd *cobra.Command, args []string) error {
 	}
 	defer database.Close()
 
-	// Get current project
-	projectID, err := service.GetState(database, service.StateCurrentProject)
+	// Get project from DB directly (like feature.go)
+	project, err := service.GetProject(database)
 	if err != nil {
-		outputError(fmt.Errorf("get current project: %w", err))
-		return nil
-	}
-	if projectID == "" {
-		outputError(fmt.Errorf("no project selected. use 'clari project set <id>' first"))
+		outputError(fmt.Errorf("get project: %w", err))
 		return nil
 	}
 
@@ -134,7 +136,7 @@ func runMessageList(cmd *cobra.Command, args []string) error {
 		featureIDPtr = &featureID
 	}
 
-	messages, total, err := service.ListMessages(database, projectID, status, featureIDPtr, limit)
+	messages, total, err := service.ListMessages(database, project.ID, status, featureIDPtr, limit)
 	if err != nil {
 		outputError(fmt.Errorf("list messages: %w", err))
 		return nil

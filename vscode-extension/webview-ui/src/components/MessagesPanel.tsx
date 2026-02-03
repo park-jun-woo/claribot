@@ -1,7 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { marked } from 'marked';
 import { useStore } from '../store';
 import { sendMessageCLI, deleteMessage } from '../hooks/useSync';
 import type { Message } from '../types';
+
+// Configure marked for safe rendering
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
 
 export function MessagesPanel() {
   const { messages, features, selectedMessageId, setSelectedMessage } = useStore();
@@ -105,7 +112,7 @@ function CreateMessageForm({ features, onClose }: CreateMessageFormProps) {
       <div className="mb-2">
         <label className="block text-xs mb-1 opacity-70">Message Content</label>
         <textarea
-          placeholder="Enter your modification request..."
+          placeholder="Enter your request..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
           className="w-full px-2 py-1 text-sm bg-vscode-input-bg border border-vscode-border rounded resize-none"
@@ -261,12 +268,7 @@ function MessageDetail({ messageId, features }: MessageDetailProps) {
         </div>
 
         {message.status === 'completed' && message.response && (
-          <div>
-            <h3 className="text-sm font-semibold mb-1 text-green-400">Response</h3>
-            <div className="text-sm p-3 bg-green-900/30 border border-green-800 rounded whitespace-pre-wrap">
-              {message.response}
-            </div>
-          </div>
+          <ReportSection content={message.response} />
         )}
 
         {message.status === 'failed' && message.error && (
@@ -285,6 +287,22 @@ function MessageDetail({ messageId, features }: MessageDetailProps) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReportSection({ content }: { content: string }) {
+  const html = useMemo(() => {
+    return marked.parse(content) as string;
+  }, [content]);
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold mb-1 text-green-400">Report</h3>
+      <div
+        className="text-sm p-3 bg-green-900/30 border border-green-800 rounded markdown-content"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
     </div>
   );
 }

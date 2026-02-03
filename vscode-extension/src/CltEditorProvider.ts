@@ -932,8 +932,8 @@ TODO: Define best practices
       // Escape content for shell (single quotes)
       const escapedContent = message.content.replace(/'/g, "'\\''");
 
-      // Build command
-      let command = `~/bin/clari message send '${escapedContent}'`;
+      // Build command (like handleCreateFeature)
+      let command = `~/bin/clari message send --content '${escapedContent}'`;
       if (message.featureId) {
         command += ` --feature ${message.featureId}`;
       }

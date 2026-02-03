@@ -237,16 +237,16 @@ func CountMessageTasks(database *db.DB, messageID int64) (int, error) {
 func MessageAnalysisSystemPrompt() string {
 	return `You are in Claritask Message Analysis Mode.
 
-ROLE: Analyze user's modification request and create Tasks.
+ROLE: Analyze user's request and create Tasks.
 
 WORKFLOW:
 1. Analyze the user's request
 2. Break down into actionable Tasks
 3. Register each Task using: clari task add '{"feature_id": N, "title": "...", "content": "..."}'
-4. Write a summary report
+4. Write a summary report to the completion file (path provided in prompt)
 
 COMPLETION:
-When all Tasks are registered, create '.claritask/complete' file with the report content.
+When all Tasks are registered, write the report to the completion file specified in the prompt.
 Report format (Markdown):
 - Summary of request analysis
 - List of created Tasks with IDs
@@ -272,13 +272,13 @@ func RunMessageAnalysisWithTTY(database *db.DB, message *model.Message) (string,
 		return "", 0, fmt.Errorf("create .claritask directory: %w", err)
 	}
 
-	// Remove any existing complete file
-	completeFile := filepath.Join(claritaskDir, "complete")
+	// Remove any existing complete file (with message ID)
+	completeFile := filepath.Join(claritaskDir, fmt.Sprintf("complete-message-%d.md", message.ID))
 	os.Remove(completeFile)
 
 	// Build prompts
 	systemPrompt := MessageAnalysisSystemPrompt()
-	initialPrompt := BuildMessageAnalysisPrompt(database, message)
+	initialPrompt := BuildMessageAnalysisPrompt(database, message, completeFile)
 
 	// Run TTY handover
 	err := RunWithTTYHandoverEx(systemPrompt, initialPrompt, "acceptEdits", completeFile)
@@ -310,7 +310,7 @@ func RunMessageAnalysisWithTTY(database *db.DB, message *model.Message) (string,
 }
 
 // BuildMessageAnalysisPrompt builds the initial prompt for message analysis
-func BuildMessageAnalysisPrompt(database *db.DB, message *model.Message) string {
+func BuildMessageAnalysisPrompt(database *db.DB, message *model.Message, completeFile string) string {
 	var featureInfo string
 	if message.FeatureID != nil && *message.FeatureID > 0 {
 		if feature, err := GetFeature(database, *message.FeatureID); err == nil && feature != nil {
@@ -328,6 +328,7 @@ FDL Available: %v
 
 Message ID: %d
 Project: %s
+Completion File: %s
 
 === User Request ===
 %s
@@ -338,8 +339,9 @@ Analyze the request and create Tasks.
 
 IMPORTANT:
 - Use "clari task add" to register each task
-- After creating all tasks, create '.claritask/complete' with a report
-`, message.ID, message.ProjectID, message.Content, featureInfo)
+- After creating all tasks, write the report to: %s
+- The report should be in Markdown format
+`, message.ID, message.ProjectID, completeFile, message.Content, featureInfo, completeFile)
 }
 
 // SaveMessageReport saves the analysis report to reports folder
