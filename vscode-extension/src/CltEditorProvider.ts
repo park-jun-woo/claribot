@@ -124,6 +124,18 @@ export class CltEditorProvider implements vscode.CustomReadonlyEditorProvider {
       case 'createFeature':
         this.handleCreateFeature(message, database, webview, sync);
         break;
+
+      case 'saveContext':
+        this.handleSaveContext(message, database, webview, sync);
+        break;
+
+      case 'saveTech':
+        this.handleSaveTech(message, database, webview, sync);
+        break;
+
+      case 'saveDesign':
+        this.handleSaveDesign(message, database, webview, sync);
+        break;
     }
   }
 
@@ -254,6 +266,78 @@ export class CltEditorProvider implements vscode.CustomReadonlyEditorProvider {
     } catch (err) {
       webview.postMessage({
         type: 'createResult',
+        success: false,
+        error: String(err),
+      });
+    }
+  }
+
+  private handleSaveContext(
+    message: { data: Record<string, any> },
+    database: Database,
+    webview: vscode.Webview,
+    sync: SyncManager
+  ): void {
+    try {
+      database.saveContext(message.data);
+      webview.postMessage({
+        type: 'settingSaveResult',
+        section: 'context',
+        success: true,
+      });
+      sync.refresh();
+    } catch (err) {
+      webview.postMessage({
+        type: 'settingSaveResult',
+        section: 'context',
+        success: false,
+        error: String(err),
+      });
+    }
+  }
+
+  private handleSaveTech(
+    message: { data: Record<string, any> },
+    database: Database,
+    webview: vscode.Webview,
+    sync: SyncManager
+  ): void {
+    try {
+      database.saveTech(message.data);
+      webview.postMessage({
+        type: 'settingSaveResult',
+        section: 'tech',
+        success: true,
+      });
+      sync.refresh();
+    } catch (err) {
+      webview.postMessage({
+        type: 'settingSaveResult',
+        section: 'tech',
+        success: false,
+        error: String(err),
+      });
+    }
+  }
+
+  private handleSaveDesign(
+    message: { data: Record<string, any> },
+    database: Database,
+    webview: vscode.Webview,
+    sync: SyncManager
+  ): void {
+    try {
+      database.saveDesign(message.data);
+      webview.postMessage({
+        type: 'settingSaveResult',
+        section: 'design',
+        success: true,
+      });
+      sync.refresh();
+    } catch (err) {
+      webview.postMessage({
+        type: 'settingSaveResult',
+        section: 'design',
         success: false,
         error: String(err),
       });

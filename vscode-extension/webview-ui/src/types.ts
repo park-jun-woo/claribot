@@ -63,7 +63,8 @@ export type MessageToWebview =
   | { type: 'saveResult'; success: boolean; table?: string; id?: number; error?: string }
   | { type: 'conflict'; table: string; id: number }
   | { type: 'edgeResult'; success: boolean; action?: string; error?: string }
-  | { type: 'createResult'; success: boolean; table?: string; id?: number; error?: string };
+  | { type: 'createResult'; success: boolean; table?: string; id?: number; error?: string }
+  | { type: 'settingSaveResult'; section: 'context' | 'tech' | 'design'; success: boolean; error?: string };
 
 export type MessageFromWebview =
   | { type: 'save'; table: string; id: number; data: any; version: number }
@@ -71,4 +72,7 @@ export type MessageFromWebview =
   | { type: 'addEdge'; fromId: number; toId: number }
   | { type: 'removeEdge'; fromId: number; toId: number }
   | { type: 'createTask'; featureId: number; title: string; content: string }
-  | { type: 'createFeature'; name: string; description: string };
+  | { type: 'createFeature'; name: string; description: string }
+  | { type: 'saveContext'; data: Record<string, any> }
+  | { type: 'saveTech'; data: Record<string, any> }
+  | { type: 'saveDesign'; data: Record<string, any> };

@@ -66,6 +66,15 @@ export function useSync(): SyncState {
             }));
           }
           break;
+
+        case 'settingSaveResult':
+          if (!message.success && message.error) {
+            setState((prev) => ({
+              ...prev,
+              error: `Failed to save ${message.section}: ${message.error}`,
+            }));
+          }
+          break;
       }
     };
 

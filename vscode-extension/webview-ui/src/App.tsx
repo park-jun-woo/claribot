@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore } from './store';
+import { ProjectPanel } from './components/ProjectPanel';
 import { FeatureList } from './components/FeatureList';
 import { TaskPanel } from './components/TaskPanel';
 import { StatusBar } from './components/StatusBar';
@@ -8,7 +9,7 @@ import { useSync } from './hooks/useSync';
 function App() {
   const { project, selectedFeatureId } = useStore();
   const { isConnected, lastSync, error } = useSync();
-  const [view, setView] = useState<'features' | 'tasks'>('features');
+  const [view, setView] = useState<'project' | 'features' | 'tasks'>('project');
 
   return (
     <div className="flex flex-col h-screen">
@@ -23,6 +24,16 @@ function App() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setView('project')}
+            className={`px-3 py-1 rounded ${
+              view === 'project'
+                ? 'bg-vscode-button-bg text-vscode-button-fg'
+                : 'hover:bg-vscode-list-hover'
+            }`}
+          >
+            Project
+          </button>
           <button
             onClick={() => setView('features')}
             className={`px-3 py-1 rounded ${
@@ -55,11 +66,9 @@ function App() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
-        {view === 'features' ? (
-          <FeatureList />
-        ) : (
-          <TaskPanel featureId={selectedFeatureId} />
-        )}
+        {view === 'project' && <ProjectPanel />}
+        {view === 'features' && <FeatureList />}
+        {view === 'tasks' && <TaskPanel featureId={selectedFeatureId} />}
       </main>
 
       {/* Status Bar */}

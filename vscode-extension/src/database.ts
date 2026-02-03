@@ -291,4 +291,37 @@ export class Database {
     const row = this.queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
     return row?.id ?? 0;
   }
+
+  saveContext(data: Record<string, any>): void {
+    const jsonData = JSON.stringify(data);
+    const existing = this.queryOne<{ id: number }>('SELECT id FROM context WHERE id = 1');
+    if (existing) {
+      this.run('UPDATE context SET data = ? WHERE id = 1', [jsonData]);
+    } else {
+      this.run('INSERT INTO context (id, data) VALUES (1, ?)', [jsonData]);
+    }
+    this.save();
+  }
+
+  saveTech(data: Record<string, any>): void {
+    const jsonData = JSON.stringify(data);
+    const existing = this.queryOne<{ id: number }>('SELECT id FROM tech WHERE id = 1');
+    if (existing) {
+      this.run('UPDATE tech SET data = ? WHERE id = 1', [jsonData]);
+    } else {
+      this.run('INSERT INTO tech (id, data) VALUES (1, ?)', [jsonData]);
+    }
+    this.save();
+  }
+
+  saveDesign(data: Record<string, any>): void {
+    const jsonData = JSON.stringify(data);
+    const existing = this.queryOne<{ id: number }>('SELECT id FROM design WHERE id = 1');
+    if (existing) {
+      this.run('UPDATE design SET data = ? WHERE id = 1', [jsonData]);
+    } else {
+      this.run('INSERT INTO design (id, data) VALUES (1, ?)', [jsonData]);
+    }
+    this.save();
+  }
 }

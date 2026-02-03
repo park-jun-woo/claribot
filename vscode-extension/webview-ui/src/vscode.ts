@@ -6,16 +6,20 @@ declare function acquireVsCodeApi(): {
   setState(state: any): void;
 };
 
-const vscode = acquireVsCodeApi();
+const vscodeApi = acquireVsCodeApi();
+
+export const vscode = {
+  postMessage: (message: MessageFromWebview) => vscodeApi.postMessage(message),
+};
 
 export function postMessage(message: MessageFromWebview): void {
-  vscode.postMessage(message);
+  vscodeApi.postMessage(message);
 }
 
 export function getState<T>(): T | undefined {
-  return vscode.getState() as T | undefined;
+  return vscodeApi.getState() as T | undefined;
 }
 
 export function setState<T>(state: T): void {
-  vscode.setState(state);
+  vscodeApi.setState(state);
 }
