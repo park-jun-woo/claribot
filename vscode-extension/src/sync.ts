@@ -34,6 +34,7 @@ export class SyncManager {
 
       if (mtime !== this.lastMtime) {
         this.lastMtime = mtime;
+        this.database.reload();
         this.sendFullSync();
       }
     } catch (err) {

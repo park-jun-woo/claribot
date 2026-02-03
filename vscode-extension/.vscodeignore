@@ -1,5 +1,6 @@
 .vscode/**
 node_modules/**
+!node_modules/sql.js/dist/sql-wasm.wasm
 webview-ui/node_modules/**
 webview-ui/src/**
 webview-ui/*.json
@@ -7,6 +8,8 @@ webview-ui/*.js
 webview-ui/*.ts
 webview-ui/index.html
 src/**
+out/**
+!dist/**
 !webview-ui/dist/**
 *.map
 .gitignore

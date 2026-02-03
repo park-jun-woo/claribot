@@ -166,3 +166,6 @@ func outputJSON(v interface{}) {
 - specs/* - 전체 요구사항 명세서
 - tasks/* - 구현 계획 Task 파일들
 - talks/* - 사용자와 클로드 코드의 과거 대화 내용
+
+## 버전 표기 규칙
+- vX.X.N 형식이며 테스트하며 수정할때 N 숫자만 올려라. 10이 넘어도 vX.X.11로 표기하라.

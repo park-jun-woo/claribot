@@ -1,4 +1,6 @@
-import BetterSqlite3 from 'better-sqlite3';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface Project {
   id: string;
@@ -59,17 +61,97 @@ export interface ProjectData {
   state: Record<string, string>;
 }
 
+let SQL: Awaited<ReturnType<typeof initSqlJs>> | null = null;
+let extensionPath: string = '';
+
+export function setExtensionPath(extPath: string): void {
+  extensionPath = extPath;
+}
+
+async function getSqlJs(): Promise<typeof SQL> {
+  if (!SQL) {
+    const wasmPath = path.join(extensionPath, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
+    SQL = await initSqlJs({
+      locateFile: () => wasmPath,
+    });
+  }
+  return SQL;
+}
+
 export class Database {
-  private db: BetterSqlite3.Database;
+  private db: SqlJsDatabase | null = null;
+  private dbPath: string;
 
   constructor(dbPath: string) {
-    this.db = new BetterSqlite3(dbPath, { readonly: false });
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('busy_timeout = 5000');
+    this.dbPath = dbPath;
+  }
+
+  async init(): Promise<void> {
+    const SqlJs = await getSqlJs();
+    const buffer = fs.readFileSync(this.dbPath);
+    this.db = new SqlJs!.Database(buffer);
+  }
+
+  private getDb(): SqlJsDatabase {
+    if (!this.db) {
+      throw new Error('Database not initialized. Call init() first.');
+    }
+    return this.db;
   }
 
   close(): void {
-    this.db.close();
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
+  }
+
+  save(): void {
+    if (this.db) {
+      const data = this.db.export();
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(this.dbPath, buffer);
+    }
+  }
+
+  reload(): void {
+    if (this.db) {
+      const buffer = fs.readFileSync(this.dbPath);
+      const SqlJs = SQL!;
+      this.db.close();
+      this.db = new SqlJs.Database(buffer);
+    }
+  }
+
+  private queryOne<T>(sql: string, params: any[] = []): T | null {
+    const db = this.getDb();
+    const stmt = db.prepare(sql);
+    stmt.bind(params);
+    if (stmt.step()) {
+      const row = stmt.getAsObject() as T;
+      stmt.free();
+      return row;
+    }
+    stmt.free();
+    return null;
+  }
+
+  private queryAll<T>(sql: string, params: any[] = []): T[] {
+    const db = this.getDb();
+    const results: T[] = [];
+    const stmt = db.prepare(sql);
+    stmt.bind(params);
+    while (stmt.step()) {
+      results.push(stmt.getAsObject() as T);
+    }
+    stmt.free();
+    return results;
+  }
+
+  private run(sql: string, params: any[] = []): number {
+    const db = this.getDb();
+    db.run(sql, params);
+    return db.getRowsModified();
   }
 
   readAll(): ProjectData {
@@ -87,56 +169,46 @@ export class Database {
   }
 
   getProject(): Project | null {
-    const row = this.db.prepare('SELECT * FROM projects LIMIT 1').get() as Project | undefined;
-    return row ?? null;
+    return this.queryOne<Project>('SELECT * FROM projects LIMIT 1');
   }
 
   getFeatures(): Feature[] {
-    return this.db.prepare('SELECT * FROM features ORDER BY id').all() as Feature[];
+    return this.queryAll<Feature>('SELECT * FROM features ORDER BY id');
   }
 
   getTasks(): Task[] {
-    return this.db.prepare('SELECT * FROM tasks ORDER BY id').all() as Task[];
+    return this.queryAll<Task>('SELECT * FROM tasks ORDER BY id');
   }
 
   getTaskEdges(): Edge[] {
-    return this.db
-      .prepare('SELECT from_task_id as from_id, to_task_id as to_id, created_at FROM task_edges')
-      .all() as Edge[];
+    return this.queryAll<Edge>(
+      'SELECT from_task_id as from_id, to_task_id as to_id, created_at FROM task_edges'
+    );
   }
 
   getFeatureEdges(): Edge[] {
-    return this.db
-      .prepare('SELECT from_feature_id as from_id, to_feature_id as to_id, created_at FROM feature_edges')
-      .all() as Edge[];
+    return this.queryAll<Edge>(
+      'SELECT from_feature_id as from_id, to_feature_id as to_id, created_at FROM feature_edges'
+    );
   }
 
   getContext(): Record<string, any> | null {
-    const row = this.db.prepare('SELECT data FROM context WHERE id = 1').get() as
-      | { data: string }
-      | undefined;
+    const row = this.queryOne<{ data: string }>('SELECT data FROM context WHERE id = 1');
     return row ? JSON.parse(row.data) : null;
   }
 
   getTech(): Record<string, any> | null {
-    const row = this.db.prepare('SELECT data FROM tech WHERE id = 1').get() as
-      | { data: string }
-      | undefined;
+    const row = this.queryOne<{ data: string }>('SELECT data FROM tech WHERE id = 1');
     return row ? JSON.parse(row.data) : null;
   }
 
   getDesign(): Record<string, any> | null {
-    const row = this.db.prepare('SELECT data FROM design WHERE id = 1').get() as
-      | { data: string }
-      | undefined;
+    const row = this.queryOne<{ data: string }>('SELECT data FROM design WHERE id = 1');
     return row ? JSON.parse(row.data) : null;
   }
 
   getState(): Record<string, string> {
-    const rows = this.db.prepare('SELECT key, value FROM state').all() as {
-      key: string;
-      value: string;
-    }[];
+    const rows = this.queryAll<{ key: string; value: string }>('SELECT key, value FROM state');
     const state: Record<string, string> = {};
     for (const row of rows) {
       state[row.key] = row.value;
@@ -151,14 +223,16 @@ export class Database {
     const setClause = fields.map((f) => `${f} = ?`).join(', ');
     const values = fields.map((f) => (data as any)[f]);
 
-    const stmt = this.db.prepare(`
-      UPDATE tasks
-      SET ${setClause}, version = version + 1
-      WHERE id = ? AND version = ?
-    `);
+    const changes = this.run(
+      `UPDATE tasks SET ${setClause}, version = version + 1 WHERE id = ? AND version = ?`,
+      [...values, id, expectedVersion]
+    );
 
-    const result = stmt.run(...values, id, expectedVersion);
-    return result.changes > 0;
+    if (changes > 0) {
+      this.save();
+      return true;
+    }
+    return false;
   }
 
   updateFeature(id: number, data: Partial<Feature>, expectedVersion: number): boolean {
@@ -168,50 +242,53 @@ export class Database {
     const setClause = fields.map((f) => `${f} = ?`).join(', ');
     const values = fields.map((f) => (data as any)[f]);
 
-    const stmt = this.db.prepare(`
-      UPDATE features
-      SET ${setClause}, version = version + 1
-      WHERE id = ? AND version = ?
-    `);
+    const changes = this.run(
+      `UPDATE features SET ${setClause}, version = version + 1 WHERE id = ? AND version = ?`,
+      [...values, id, expectedVersion]
+    );
 
-    const result = stmt.run(...values, id, expectedVersion);
-    return result.changes > 0;
+    if (changes > 0) {
+      this.save();
+      return true;
+    }
+    return false;
   }
 
   addTaskEdge(fromId: number, toId: number): void {
     const now = new Date().toISOString();
-    this.db
-      .prepare(
-        `INSERT OR IGNORE INTO task_edges (from_task_id, to_task_id, created_at) VALUES (?, ?, ?)`
-      )
-      .run(fromId, toId, now);
+    this.run(
+      'INSERT OR IGNORE INTO task_edges (from_task_id, to_task_id, created_at) VALUES (?, ?, ?)',
+      [fromId, toId, now]
+    );
+    this.save();
   }
 
   removeTaskEdge(fromId: number, toId: number): void {
-    this.db
-      .prepare('DELETE FROM task_edges WHERE from_task_id = ? AND to_task_id = ?')
-      .run(fromId, toId);
+    this.run('DELETE FROM task_edges WHERE from_task_id = ? AND to_task_id = ?', [fromId, toId]);
+    this.save();
   }
 
   createTask(featureId: number, title: string, content: string): number {
     const now = new Date().toISOString();
-    const result = this.db
-      .prepare(
-        `INSERT INTO tasks (feature_id, title, content, status, created_at) VALUES (?, ?, ?, 'pending', ?)`
-      )
-      .run(featureId, title, content, now);
-    return Number(result.lastInsertRowid);
+    this.run(
+      "INSERT INTO tasks (feature_id, title, content, status, created_at) VALUES (?, ?, ?, 'pending', ?)",
+      [featureId, title, content, now]
+    );
+    this.save();
+    const row = this.queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+    return row?.id ?? 0;
   }
 
   createFeature(name: string, description: string): number {
     const project = this.getProject();
     const projectId = project?.id ?? '';
     const now = new Date().toISOString();
-    const result = this.db
-      .prepare(
-        `INSERT INTO features (project_id, name, description, status, created_at) VALUES (?, ?, ?, 'pending', ?)`
-      )
-      .run(projectId, name, description, now);
-    return Number(result.lastInsertRowid);
+    this.run(
+      "INSERT INTO features (project_id, name, description, status, created_at) VALUES (?, ?, ?, 'pending', ?)",
+      [projectId, name, description, now]
+    );
+    this.save();
+    const row = this.queryOne<{ id: number }>('SELECT last_insert_rowid() as id');
+    return row?.id ?? 0;
   }
 }

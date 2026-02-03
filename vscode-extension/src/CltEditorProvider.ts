@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Database } from './database';
+import { Database, setExtensionPath } from './database';
 import { SyncManager } from './sync';
 
 export class CltEditorProvider implements vscode.CustomReadonlyEditorProvider {
@@ -44,7 +44,9 @@ export class CltEditorProvider implements vscode.CustomReadonlyEditorProvider {
     let sync: SyncManager | null = null;
 
     try {
+      setExtensionPath(this.context.extensionUri.fsPath);
       database = new Database(dbPath);
+      await database.init();
       sync = new SyncManager(database, webviewPanel.webview, dbPath);
       sync.start();
 
