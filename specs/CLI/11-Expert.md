@@ -225,27 +225,40 @@ clari expert remove <expert-id> --force
 
 ## clari expert assign
 
-프로젝트에 Expert 할당
+프로젝트 또는 Feature에 Expert 할당
 
 ```bash
 clari expert assign <expert-id>
 clari expert assign <expert-id> --project <project-id>
+clari expert assign <expert-id> --feature <feature-id>
 ```
 
 **플래그:**
 - `--project <project-id>`: 특정 프로젝트에 할당 (기본값: 현재 프로젝트)
+- `--feature <feature-id>`: Feature 레벨에 Expert 할당
 
 **동작:**
-1. DB의 `project_experts` 테이블에 관계 추가
-2. Task pop 시 해당 Expert 내용이 manifest에 포함됨
+1. 프로젝트 할당: DB의 `project_experts` 테이블에 관계 추가
+2. Feature 할당: DB의 `expert_assignments` 테이블에 관계 추가
+3. Task pop 시 해당 Expert 내용이 manifest에 포함됨
 
-**응답:**
+**응답 (프로젝트 할당):**
 ```json
 {
   "success": true,
   "expert_id": "backend-go-gin",
   "project_id": "my-api",
   "message": "Expert assigned to project"
+}
+```
+
+**응답 (Feature 할당):**
+```json
+{
+  "success": true,
+  "expert_id": "backend-go-gin",
+  "feature_id": 1,
+  "message": "Expert assigned to feature"
 }
 ```
 
@@ -261,20 +274,35 @@ clari expert assign <expert-id> --project <project-id>
 
 ## clari expert unassign
 
-프로젝트에서 Expert 할당 해제
+프로젝트 또는 Feature에서 Expert 할당 해제
 
 ```bash
 clari expert unassign <expert-id>
 clari expert unassign <expert-id> --project <project-id>
+clari expert unassign <expert-id> --feature <feature-id>
 ```
 
-**응답:**
+**플래그:**
+- `--project <project-id>`: 특정 프로젝트에서 해제 (기본값: 현재 프로젝트)
+- `--feature <feature-id>`: Feature 레벨에서 Expert 해제
+
+**응답 (프로젝트 해제):**
 ```json
 {
   "success": true,
   "expert_id": "backend-go-gin",
   "project_id": "my-api",
   "message": "Expert unassigned from project"
+}
+```
+
+**응답 (Feature 해제):**
+```json
+{
+  "success": true,
+  "expert_id": "backend-go-gin",
+  "feature_id": 1,
+  "message": "Expert unassigned from feature"
 }
 ```
 

@@ -59,7 +59,7 @@ clari
 | Edge | 4 | 구현 완료 |
 | FDL | 8 | 구현 완료 |
 | Plan | 1 | 구현 완료 |
-| Expert | 7 | 미구현 |
+| Expert | 7 | 구현 완료 |
 | Memo | 4 | 구현 완료 |
 | Context/Tech/Design | 6 | 구현 완료 |
 | Required | 1 | 구현 완료 |

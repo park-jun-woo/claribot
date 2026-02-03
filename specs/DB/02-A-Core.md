@@ -63,10 +63,14 @@ Task (실행 단위)
 CREATE TABLE tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     feature_id INTEGER NOT NULL,
+    parent_id INTEGER,                    -- 부모 Task ID (계층 구조용, nullable)
     skeleton_id INTEGER,                  -- 연결된 스켈레톤 (nullable)
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK(status IN ('pending', 'doing', 'done', 'failed')),
     title TEXT NOT NULL,
+    level TEXT DEFAULT 'leaf',            -- leaf, parent (계층 레벨)
+    skill TEXT DEFAULT '',                -- 필요 기술 (sql, python, go 등)
+    refs TEXT DEFAULT '',                 -- 참조 목록 (JSON 배열)
     content TEXT DEFAULT '',              -- Task 상세 내용
     target_file TEXT DEFAULT '',          -- 구현 대상 파일 경로
     target_line INTEGER,                  -- 구현 대상 라인 번호
@@ -79,9 +83,16 @@ CREATE TABLE tasks (
     completed_at TEXT,                    -- done 전환 시각
     failed_at TEXT,                       -- failed 전환 시각
     FOREIGN KEY (feature_id) REFERENCES features(id),
+    FOREIGN KEY (parent_id) REFERENCES tasks(id),
     FOREIGN KEY (skeleton_id) REFERENCES skeletons(id)
 );
 ```
+
+**추가 필드 설명**:
+- `parent_id`: Task 계층 구조를 위한 부모 Task 참조
+- `level`: `leaf`(실행 가능) 또는 `parent`(하위 Task 있음)
+- `skill`: Task 실행에 필요한 기술 스택
+- `refs`: 참조할 파일/문서 목록 (JSON 배열)
 
 **Status 전이**:
 ```

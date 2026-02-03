@@ -323,14 +323,16 @@ func CheckFeatureCycle(database *db.DB, fromID, toID int64) (bool, []int64, erro
 
 // FeatureListItem represents a feature in list view with stats
 type FeatureListItem struct {
-	ID          int64   `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Spec        string  `json:"spec,omitempty"`
-	Status      string  `json:"status"`
-	TasksTotal  int     `json:"tasks_total"`
-	TasksDone   int     `json:"tasks_done"`
-	DependsOn   []int64 `json:"depends_on,omitempty"`
+	ID                int64   `json:"id"`
+	Name              string  `json:"name"`
+	Description       string  `json:"description"`
+	Spec              string  `json:"spec,omitempty"`
+	Status            string  `json:"status"`
+	FDLHash           string  `json:"fdl_hash,omitempty"`
+	SkeletonGenerated bool    `json:"skeleton_generated"`
+	TasksTotal        int     `json:"tasks_total"`
+	TasksDone         int     `json:"tasks_done"`
+	DependsOn         []int64 `json:"depends_on,omitempty"`
 }
 
 // ListFeaturesWithStats retrieves features with task statistics
@@ -343,11 +345,13 @@ func ListFeaturesWithStats(database *db.DB, projectID string) ([]FeatureListItem
 	var items []FeatureListItem
 	for _, f := range features {
 		item := FeatureListItem{
-			ID:          f.ID,
-			Name:        f.Name,
-			Description: f.Description,
-			Spec:        f.Spec,
-			Status:      f.Status,
+			ID:                f.ID,
+			Name:              f.Name,
+			Description:       f.Description,
+			Spec:              f.Spec,
+			Status:            f.Status,
+			FDLHash:           f.FDLHash,
+			SkeletonGenerated: f.SkeletonGenerated,
 		}
 
 		// Get task counts

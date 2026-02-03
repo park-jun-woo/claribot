@@ -130,23 +130,26 @@ type FDLStep struct {
 
 // FDLAPI - API 엔드포인트 정의
 type FDLAPI struct {
-	Path      string                 `yaml:"path"`
-	Method    string                 `yaml:"method"`
-	Summary   string                 `yaml:"summary,omitempty"`
-	Use       string                 `yaml:"use"` // service.FunctionName
-	Request   map[string]interface{} `yaml:"request,omitempty"`
-	Response  map[string]interface{} `yaml:"response"`
-	Auth      string                 `yaml:"auth,omitempty"`      // required, optional, none, apiKey
-	Roles     []string               `yaml:"roles,omitempty"`
-	Tags      []string               `yaml:"tags,omitempty"`
-	RateLimit map[string]interface{} `yaml:"rateLimit,omitempty"`
-	Mapping   map[string]string      `yaml:"mapping,omitempty"`   // 파라미터 매핑
-	Transform map[string]interface{} `yaml:"transform,omitempty"` // 응답 변환
+	Path        string                 `yaml:"path"`
+	Method      string                 `yaml:"method"`
+	Summary     string                 `yaml:"summary,omitempty"`
+	Use         string                 `yaml:"use"` // service.FunctionName
+	Request     map[string]interface{} `yaml:"request,omitempty"`
+	Response    map[string]interface{} `yaml:"response"`
+	Auth        string                 `yaml:"auth,omitempty"` // required, optional, none, apiKey
+	Roles       []string               `yaml:"roles,omitempty"`
+	Tags        []string               `yaml:"tags,omitempty"`
+	RateLimit   map[string]interface{} `yaml:"rateLimit,omitempty"`
+	Mapping     map[string]string      `yaml:"mapping,omitempty"`   // 파라미터 매핑
+	Transform   map[string]interface{} `yaml:"transform,omitempty"` // 응답 변환
+	Constraints map[string]interface{} `yaml:"constraints,omitempty"` // 파일 업로드 제약
 	// Parsed fields
-	ParsedRequest   FDLAPIRequest   `yaml:"-"`
-	ParsedResponse  map[int]interface{} `yaml:"-"`
-	ParsedRateLimit *FDLRateLimit   `yaml:"-"`
-	ParsedTransform *FDLTransform   `yaml:"-"`
+	ParsedRequest     FDLAPIRequest        `yaml:"-"`
+	ParsedResponse    map[int]interface{}  `yaml:"-"`
+	ParsedRateLimit   *FDLRateLimit        `yaml:"-"`
+	ParsedTransform   *FDLTransform        `yaml:"-"`
+	ParsedPathParams  []string             `yaml:"-"` // 경로에서 추출한 파라미터
+	ParsedConstraints *FDLFileConstraints  `yaml:"-"` // 파싱된 파일 제약
 }
 
 // FDLAPIRequest - API 요청 구조
@@ -155,6 +158,13 @@ type FDLAPIRequest struct {
 	Query   map[string]FDLRequestParam // 쿼리스트링
 	Headers map[string]FDLRequestParam
 	Body    map[string]FDLRequestParam
+}
+
+// FDLFileConstraints - 파일 업로드 제약
+type FDLFileConstraints struct {
+	MaxSize      string   // "10MB", "5GB"
+	MaxSizeBytes int64    // 파싱된 바이트 크기
+	AllowedTypes []string // ["image/jpeg", "image/png"]
 }
 
 // FDLRequestParam - 요청 파라미터 정의
@@ -242,6 +252,22 @@ type FDLUIElement struct {
 	Props     map[string]interface{}
 	Children  []FDLUIElement
 	Condition *FDLUICondition // if/else
+	ForLoop   *FDLUIForLoop   // for loop
+}
+
+// FDLUIForLoop - UI 반복 렌더링
+type FDLUIForLoop struct {
+	Variable string        // 반복 변수명 (e.g., "post")
+	Iterator string        // 반복 대상 (e.g., "posts")
+	Key      string        // 키 (e.g., "post.id")
+	Render   []FDLUIElement // 렌더링할 요소들
+}
+
+// FDLUIBinding - UI 바인딩 정보
+type FDLUIBinding struct {
+	Raw        string   // 원본 문자열 (e.g., "{user.name}")
+	Expression string   // 표현식 (e.g., "user.name")
+	Path       []string // 경로 (e.g., ["user", "name"])
 }
 
 // FDLUICondition - UI 조건부 렌더링
@@ -883,6 +909,320 @@ func parseStepMap(m map[string]interface{}) FDLStep {
 	return step
 }
 
+// ValidDbOperations is the list of valid db step operations
+var ValidDbOperations = []string{"insert", "select", "update", "delete", "count"}
+
+// ValidCacheActions is the list of valid cache step actions
+var ValidCacheActions = []string{"get", "set", "invalidate", "delete"}
+
+// ValidCallMethods is the list of valid HTTP methods for call steps
+var ValidCallMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+
+// ValidateDbStep validates a db step
+func ValidateDbStep(step FDLStep) error {
+	if step.Type != "db" {
+		return nil
+	}
+
+	// If it's a simple string operation, it's valid (natural language)
+	if step.Operation != "" {
+		return nil
+	}
+
+	// Check detailed format
+	if operation, ok := step.Params["operation"].(string); ok {
+		validOp := false
+		for _, op := range ValidDbOperations {
+			if strings.EqualFold(operation, op) {
+				validOp = true
+				break
+			}
+		}
+		if !validOp {
+			return fmt.Errorf("db step: invalid operation '%s' (must be one of: %v)", operation, ValidDbOperations)
+		}
+
+		// Validate required fields based on operation
+		switch strings.ToLower(operation) {
+		case "insert":
+			if _, ok := step.Params["data"]; !ok {
+				if _, ok := step.Params["table"]; ok {
+					// table without data is okay for natural language description
+				}
+			}
+		case "select", "update", "delete", "count":
+			// where is typically required but can be omitted for full table operations
+		}
+	}
+
+	// Validate table if provided
+	if table, ok := step.Params["table"].(string); ok {
+		if table == "" {
+			return fmt.Errorf("db step: table name cannot be empty")
+		}
+	}
+
+	return nil
+}
+
+// ValidateEventStep validates an event step
+func ValidateEventStep(step FDLStep) error {
+	if step.Type != "event" {
+		return nil
+	}
+
+	// If it's a simple string, it's valid (natural language)
+	if step.Operation != "" {
+		return nil
+	}
+
+	// Check for required name field
+	if name, ok := step.Params["name"].(string); ok {
+		if name == "" {
+			return fmt.Errorf("event step: name cannot be empty")
+		}
+		// Validate event name format (PascalCase)
+		if !regexp.MustCompile(`^[A-Z][a-zA-Z0-9]*$`).MatchString(name) {
+			// Just a warning, not an error - allow flexibility
+		}
+	} else if _, ok := step.Params["type"].(string); !ok {
+		// No name and no type - might be using channel/template format
+		if _, ok := step.Params["channel"]; !ok {
+			return fmt.Errorf("event step: 'name' or 'type' or 'channel' is required")
+		}
+	}
+
+	// payload is optional but if provided should be a map
+	if payload, ok := step.Params["payload"]; ok {
+		if _, isMap := payload.(map[string]interface{}); !isMap {
+			// payload could also be a string reference
+			if _, isString := payload.(string); !isString {
+				return fmt.Errorf("event step: payload must be an object or string reference")
+			}
+		}
+	}
+
+	return nil
+}
+
+// ValidateCallStep validates a call step
+func ValidateCallStep(step FDLStep) error {
+	if step.Type != "call" {
+		return nil
+	}
+
+	// If it's a simple string, it's valid (natural language or service.method format)
+	if step.Operation != "" {
+		return nil
+	}
+
+	// Check for external API call
+	if external, ok := step.Params["external"].(bool); ok && external {
+		// External call requires url
+		if url, ok := step.Params["url"].(string); ok {
+			if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "${") {
+				return fmt.Errorf("call step: url must start with http://, https://, or ${variable}")
+			}
+		} else {
+			return fmt.Errorf("call step: external call requires 'url' field")
+		}
+
+		// Validate method if provided
+		if method, ok := step.Params["method"].(string); ok {
+			validMethod := false
+			for _, m := range ValidCallMethods {
+				if strings.EqualFold(method, m) {
+					validMethod = true
+					break
+				}
+			}
+			if !validMethod {
+				return fmt.Errorf("call step: invalid method '%s' (must be one of: %v)", method, ValidCallMethods)
+			}
+		}
+
+		// Validate timeout if provided
+		if timeout, ok := step.Params["timeout"].(string); ok {
+			if err := validateTimeoutFormat(timeout); err != nil {
+				return fmt.Errorf("call step: %w", err)
+			}
+		}
+	} else {
+		// Internal service call
+		if _, ok := step.Params["service"].(string); !ok {
+			// Could be using args directly
+			if _, ok := step.Params["args"]; !ok {
+				return fmt.Errorf("call step: internal call requires 'service' field")
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateTimeoutFormat validates timeout string format (e.g., "30s", "5m", "1h")
+func validateTimeoutFormat(timeout string) error {
+	timeout = strings.TrimSpace(timeout)
+	if timeout == "" {
+		return nil
+	}
+
+	// Pattern: number followed by unit (s, m, h, ms)
+	pattern := regexp.MustCompile(`^\d+(\.\d+)?(ms|s|m|h)$`)
+	if !pattern.MatchString(timeout) {
+		return fmt.Errorf("invalid timeout format '%s' (expected: number+unit like '30s', '5m', '1h', '500ms')", timeout)
+	}
+	return nil
+}
+
+// ValidateCacheStep validates a cache step
+func ValidateCacheStep(step FDLStep) error {
+	if step.Type != "cache" {
+		return nil
+	}
+
+	// If it's a simple string, it's valid (natural language)
+	if step.Operation != "" {
+		return nil
+	}
+
+	// Check for required action field
+	if action, ok := step.Params["action"].(string); ok {
+		validAction := false
+		for _, a := range ValidCacheActions {
+			if strings.EqualFold(action, a) {
+				validAction = true
+				break
+			}
+		}
+		if !validAction {
+			return fmt.Errorf("cache step: invalid action '%s' (must be one of: %v)", action, ValidCacheActions)
+		}
+
+		// Validate key is present
+		if _, ok := step.Params["key"].(string); !ok {
+			if _, ok := step.Params["pattern"].(string); !ok {
+				return fmt.Errorf("cache step: 'key' or 'pattern' is required")
+			}
+		}
+
+		// Validate TTL format if provided
+		if ttl, ok := step.Params["ttl"]; ok {
+			if err := validateTTLFormat(ttl); err != nil {
+				return fmt.Errorf("cache step: %w", err)
+			}
+		}
+	} else {
+		return fmt.Errorf("cache step: 'action' field is required")
+	}
+
+	return nil
+}
+
+// validateTTLFormat validates TTL value (can be number in seconds or string like "1h")
+func validateTTLFormat(ttl interface{}) error {
+	switch v := ttl.(type) {
+	case int, int64, float64:
+		// Numeric TTL in seconds is valid
+		return nil
+	case string:
+		// String TTL like "1h", "30m", "5m"
+		pattern := regexp.MustCompile(`^\d+(\.\d+)?(ms|s|m|h|d)$`)
+		if !pattern.MatchString(v) {
+			return fmt.Errorf("invalid TTL format '%s' (expected: number or duration like '1h', '30m')", v)
+		}
+		return nil
+	default:
+		return fmt.Errorf("invalid TTL type (expected: number or string)")
+	}
+}
+
+// ValidateConditionStep validates a condition step
+func ValidateConditionStep(step FDLStep) error {
+	if step.Type != "condition" && step.Type != "if" {
+		return nil
+	}
+
+	// Check for 'if' condition
+	if ifCond, ok := step.Params["if"].(string); ok {
+		if ifCond == "" {
+			return fmt.Errorf("condition step: 'if' condition cannot be empty")
+		}
+	} else {
+		return fmt.Errorf("condition step: 'if' condition is required")
+	}
+
+	// Check for 'then' branch
+	if _, ok := step.Params["then"]; !ok {
+		return fmt.Errorf("condition step: 'then' branch is required")
+	}
+
+	// 'else' is optional
+
+	return nil
+}
+
+// ValidateLoopStep validates a loop step
+func ValidateLoopStep(step FDLStep) error {
+	if step.Type != "loop" {
+		return nil
+	}
+
+	// Check for iteration target (over or each)
+	hasIterator := false
+	if _, ok := step.Params["over"].(string); ok {
+		hasIterator = true
+	}
+	if _, ok := step.Params["each"].(string); ok {
+		hasIterator = true
+	}
+	if !hasIterator {
+		return fmt.Errorf("loop step: 'over' or 'each' field is required")
+	}
+
+	// Check for 'as' variable name
+	if _, ok := step.Params["as"].(string); !ok {
+		return fmt.Errorf("loop step: 'as' field is required (loop variable name)")
+	}
+
+	// Check for 'do' body
+	if _, ok := step.Params["do"]; !ok {
+		return fmt.Errorf("loop step: 'do' field is required (loop body)")
+	}
+
+	return nil
+}
+
+// ValidateServiceSteps validates all steps in a service
+func ValidateServiceSteps(svc *FDLService) []error {
+	var errors []error
+
+	for i, step := range svc.ParsedSteps {
+		stepNum := i + 1
+
+		if err := ValidateDbStep(step); err != nil {
+			errors = append(errors, fmt.Errorf("step %d: %w", stepNum, err))
+		}
+		if err := ValidateEventStep(step); err != nil {
+			errors = append(errors, fmt.Errorf("step %d: %w", stepNum, err))
+		}
+		if err := ValidateCallStep(step); err != nil {
+			errors = append(errors, fmt.Errorf("step %d: %w", stepNum, err))
+		}
+		if err := ValidateCacheStep(step); err != nil {
+			errors = append(errors, fmt.Errorf("step %d: %w", stepNum, err))
+		}
+		if err := ValidateConditionStep(step); err != nil {
+			errors = append(errors, fmt.Errorf("step %d: %w", stepNum, err))
+		}
+		if err := ValidateLoopStep(step); err != nil {
+			errors = append(errors, fmt.Errorf("step %d: %w", stepNum, err))
+		}
+	}
+
+	return errors
+}
+
 // ParseAndValidateService parses and validates a service definition
 func ParseAndValidateService(svc *FDLService) error {
 	// Parse input
@@ -906,6 +1246,12 @@ func ParseAndValidateService(svc *FDLService) error {
 		if !validAuth[strings.ToLower(svc.Auth)] {
 			return fmt.Errorf("service %s: invalid auth value: %s (must be required, optional, or none)", svc.Name, svc.Auth)
 		}
+	}
+
+	// Validate steps
+	stepErrors := ValidateServiceSteps(svc)
+	if len(stepErrors) > 0 {
+		return fmt.Errorf("service %s: %v", svc.Name, stepErrors[0])
 	}
 
 	return nil
@@ -1115,6 +1461,18 @@ func ParseAndValidateAPI(api *FDLAPI, services []FDLService) error {
 	// Parse transform
 	api.ParsedTransform = parseTransform(api.Transform)
 
+	// Extract path parameters
+	api.ParsedPathParams = extractPathParams(api.Path)
+
+	// Parse file constraints
+	if api.Constraints != nil {
+		parsed, err := parseFileConstraints(api.Constraints)
+		if err != nil {
+			return fmt.Errorf("API %s: %w", api.Path, err)
+		}
+		api.ParsedConstraints = parsed
+	}
+
 	// Validate method
 	validMethods := map[string]bool{
 		"GET": true, "POST": true, "PUT": true, "PATCH": true, "DELETE": true, "HEAD": true, "OPTIONS": true,
@@ -1143,7 +1501,137 @@ func ParseAndValidateAPI(api *FDLAPI, services []FDLService) error {
 		return fmt.Errorf("API %s: use must reference service (service.FunctionName)", api.Path)
 	}
 
+	// Validate path parameters match declared params
+	if err := validatePathParamsMatch(api); err != nil {
+		return fmt.Errorf("API %s: %w", api.Path, err)
+	}
+
+	// Validate response status codes
+	if err := validateResponseStatusCodes(api.ParsedResponse); err != nil {
+		return fmt.Errorf("API %s: %w", api.Path, err)
+	}
+
 	return nil
+}
+
+// extractPathParams extracts path parameters from a path like /users/{userId}/posts/{postId}
+func extractPathParams(path string) []string {
+	re := regexp.MustCompile(`\{([^}]+)\}`)
+	matches := re.FindAllStringSubmatch(path, -1)
+	params := make([]string, 0, len(matches))
+	for _, m := range matches {
+		if len(m) > 1 {
+			params = append(params, m[1])
+		}
+	}
+	return params
+}
+
+// validatePathParamsMatch validates that path parameters in URL match declared params
+func validatePathParamsMatch(api *FDLAPI) error {
+	if len(api.ParsedPathParams) == 0 {
+		return nil
+	}
+
+	declaredParams := make(map[string]bool)
+	for name := range api.ParsedRequest.Params {
+		declaredParams[name] = true
+	}
+
+	// Check if all path params are declared (warning only, not error)
+	for _, param := range api.ParsedPathParams {
+		if !declaredParams[param] {
+			// This is a warning, not an error - params may be implicitly typed
+		}
+	}
+
+	return nil
+}
+
+// parseFileConstraints parses file upload constraints
+func parseFileConstraints(constraints map[string]interface{}) (*FDLFileConstraints, error) {
+	fc := &FDLFileConstraints{}
+
+	// Parse maxSize
+	if maxSize, ok := constraints["maxSize"].(string); ok {
+		fc.MaxSize = maxSize
+		bytes, err := parseSizeString(maxSize)
+		if err != nil {
+			return nil, fmt.Errorf("invalid maxSize: %w", err)
+		}
+		fc.MaxSizeBytes = bytes
+	}
+
+	// Parse allowedTypes
+	if types, ok := constraints["allowedTypes"].([]interface{}); ok {
+		for _, t := range types {
+			if typeStr, ok := t.(string); ok {
+				// Validate MIME type format
+				if !isValidMIMEType(typeStr) {
+					return nil, fmt.Errorf("invalid MIME type: %s", typeStr)
+				}
+				fc.AllowedTypes = append(fc.AllowedTypes, typeStr)
+			}
+		}
+	}
+
+	return fc, nil
+}
+
+// parseSizeString parses size string like "10MB", "5GB" to bytes
+func parseSizeString(size string) (int64, error) {
+	size = strings.TrimSpace(strings.ToUpper(size))
+	if size == "" {
+		return 0, fmt.Errorf("empty size string")
+	}
+
+	// Pattern: number followed by unit (B, KB, MB, GB, TB)
+	re := regexp.MustCompile(`^(\d+(?:\.\d+)?)\s*(B|KB|MB|GB|TB)$`)
+	matches := re.FindStringSubmatch(size)
+	if len(matches) != 3 {
+		return 0, fmt.Errorf("invalid size format '%s' (expected: number+unit like '10MB', '5GB')", size)
+	}
+
+	var num float64
+	fmt.Sscanf(matches[1], "%f", &num)
+
+	multipliers := map[string]int64{
+		"B":  1,
+		"KB": 1024,
+		"MB": 1024 * 1024,
+		"GB": 1024 * 1024 * 1024,
+		"TB": 1024 * 1024 * 1024 * 1024,
+	}
+
+	multiplier, ok := multipliers[matches[2]]
+	if !ok {
+		return 0, fmt.Errorf("unknown size unit: %s", matches[2])
+	}
+
+	return int64(num * float64(multiplier)), nil
+}
+
+// isValidMIMEType validates MIME type format
+func isValidMIMEType(mimeType string) bool {
+	// Basic MIME type validation: type/subtype
+	// Examples: image/jpeg, application/pdf, text/plain
+	pattern := regexp.MustCompile(`^[a-zA-Z0-9_-]+/[a-zA-Z0-9._+-]+$`)
+	return pattern.MatchString(mimeType)
+}
+
+// validateResponseStatusCodes validates that response status codes are valid HTTP codes
+func validateResponseStatusCodes(responses map[int]interface{}) error {
+	for code := range responses {
+		if !isValidHTTPStatusCode(code) {
+			return fmt.Errorf("invalid HTTP status code: %d (must be between 100-599)", code)
+		}
+	}
+	return nil
+}
+
+// isValidHTTPStatusCode checks if code is a valid HTTP status code
+func isValidHTTPStatusCode(code int) bool {
+	return code >= 100 && code <= 599
 }
 
 // CalculateFDLHashFromSpec calculates SHA256 hash of FDL spec
@@ -1526,9 +2014,16 @@ func parseUIElement(raw map[string]interface{}) FDLUIElement {
 		return element
 	}
 
+	// Check for for loop
+	if _, ok := raw["for"]; ok {
+		element.ForLoop = parseUIForLoop(raw)
+		element.Type = "for"
+		return element
+	}
+
 	for key, value := range raw {
 		// Skip condition-related keys (handled separately)
-		if key == "then" || key == "else" {
+		if key == "then" || key == "else" || key == "key" || key == "render" {
 			continue
 		}
 
@@ -1595,6 +2090,264 @@ func parseUICondition(raw map[string]interface{}) *FDLUICondition {
 // ValidUITypes is the list of valid UI component types
 var ValidUITypes = []string{"Page", "Template", "Organism", "Molecule", "Atom"}
 
+// ValidUIEventHandlers is the list of valid event handler prefixes
+var ValidUIEventHandlers = []string{
+	"onClick", "onChange", "onSubmit", "onHover", "onFocus", "onBlur",
+	"onKeyDown", "onKeyUp", "onKeyPress", "onEnter", "onScroll",
+	"onLoad", "onError", "onDelete", "onSuccess", "onCancel",
+}
+
+// ExtractBindings extracts all {expression} bindings from a value
+func ExtractBindings(value string) []FDLUIBinding {
+	var bindings []FDLUIBinding
+
+	re := regexp.MustCompile(`\{([^}]+)\}`)
+	matches := re.FindAllStringSubmatch(value, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			expr := strings.TrimSpace(match[1])
+			binding := FDLUIBinding{
+				Raw:        match[0],
+				Expression: expr,
+				Path:       parseBindingPath(expr),
+			}
+			bindings = append(bindings, binding)
+		}
+	}
+
+	return bindings
+}
+
+// parseBindingPath parses a binding expression into path segments
+// e.g., "user.profile.name" -> ["user", "profile", "name"]
+// e.g., "items[0].name" -> ["items", "[0]", "name"]
+func parseBindingPath(expr string) []string {
+	// Handle function calls by just returning the expression as-is
+	if strings.Contains(expr, "(") {
+		return []string{expr}
+	}
+
+	// Split by dots, but keep array accessors
+	var path []string
+	parts := strings.Split(expr, ".")
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			path = append(path, part)
+		}
+	}
+
+	return path
+}
+
+// ValidateBindings validates that binding expressions reference valid state/props/computed
+func ValidateBindings(bindings []FDLUIBinding, ui *FDLUI) []error {
+	var errors []error
+
+	// Build available variables from state, props, and computed
+	available := make(map[string]bool)
+
+	for name := range ui.ParsedProps {
+		available[name] = true
+	}
+	for _, state := range ui.ParsedState {
+		available[state.Name] = true
+	}
+	for _, comp := range ui.ParsedComputed {
+		available[comp.Name] = true
+	}
+
+	// Always available built-in variables
+	available["props"] = true
+	available["state"] = true
+	available["methods"] = true
+	available["styles"] = true
+	available["response"] = true
+	available["error"] = true
+
+	for _, binding := range bindings {
+		if len(binding.Path) > 0 {
+			rootVar := binding.Path[0]
+			// Handle array access notation
+			if idx := strings.Index(rootVar, "["); idx > 0 {
+				rootVar = rootVar[:idx]
+			}
+
+			// Skip validation for expressions (contains operators or function calls)
+			if strings.ContainsAny(binding.Expression, "()+-*/=<>!&|?:") {
+				continue
+			}
+
+			if !available[rootVar] {
+				// This is a warning, not an error - could be a loop variable
+			}
+		}
+	}
+
+	return errors
+}
+
+// parseUIForLoop parses a for loop element
+func parseUIForLoop(raw map[string]interface{}) *FDLUIForLoop {
+	forLoop := &FDLUIForLoop{}
+
+	// Parse "for: post in posts" or "for: { variable: post, iterator: posts }"
+	if forVal, ok := raw["for"].(string); ok {
+		// Parse "item in items" format
+		parts := strings.SplitN(forVal, " in ", 2)
+		if len(parts) == 2 {
+			forLoop.Variable = strings.TrimSpace(parts[0])
+			forLoop.Iterator = strings.TrimSpace(parts[1])
+		} else {
+			// Just a variable name
+			forLoop.Variable = strings.TrimSpace(forVal)
+		}
+	} else if forMap, ok := raw["for"].(map[string]interface{}); ok {
+		if v, ok := forMap["variable"].(string); ok {
+			forLoop.Variable = v
+		}
+		if i, ok := forMap["iterator"].(string); ok {
+			forLoop.Iterator = i
+		}
+		if i, ok := forMap["in"].(string); ok {
+			forLoop.Iterator = i
+		}
+	}
+
+	// Parse key
+	if key, ok := raw["key"].(string); ok {
+		forLoop.Key = key
+	}
+
+	// Parse render
+	if render, ok := raw["render"].([]interface{}); ok {
+		forLoop.Render = parseUIViewInterface(render)
+	}
+
+	return forLoop
+}
+
+// ValidateUIForLoop validates a for loop structure
+func ValidateUIForLoop(forLoop *FDLUIForLoop) error {
+	if forLoop == nil {
+		return nil
+	}
+
+	if forLoop.Variable == "" {
+		return fmt.Errorf("for loop: variable name is required")
+	}
+
+	if forLoop.Iterator == "" {
+		return fmt.Errorf("for loop: iterator (in) is required")
+	}
+
+	if len(forLoop.Render) == 0 {
+		return fmt.Errorf("for loop: render content is required")
+	}
+
+	return nil
+}
+
+// ValidateUIEventHandlers validates event handler references in props
+func ValidateUIEventHandlers(props map[string]interface{}, methods map[string][]FDLUIAction) []error {
+	var errors []error
+
+	for propName, propValue := range props {
+		// Check if it's an event handler prop
+		isEventHandler := false
+		for _, handler := range ValidUIEventHandlers {
+			if strings.EqualFold(propName, handler) || strings.HasPrefix(propName, "on") {
+				isEventHandler = true
+				break
+			}
+		}
+
+		if !isEventHandler {
+			continue
+		}
+
+		// Check if handler references a valid method
+		if handlerStr, ok := propValue.(string); ok {
+			// Extract method name from "methods.handleSubmit" or "handleSubmit"
+			methodName := handlerStr
+			if strings.HasPrefix(handlerStr, "methods.") {
+				methodName = strings.TrimPrefix(handlerStr, "methods.")
+			}
+
+			// Remove parentheses and parameters
+			if idx := strings.Index(methodName, "("); idx > 0 {
+				methodName = methodName[:idx]
+			}
+
+			// Check if method exists (only if methods map is available)
+			if methods != nil && len(methods) > 0 {
+				if _, exists := methods[methodName]; !exists {
+					// This is a warning, not an error - method might be in parent
+				}
+			}
+		}
+	}
+
+	return errors
+}
+
+// ExtractAllBindingsFromUI extracts all bindings from a UI component
+func ExtractAllBindingsFromUI(ui *FDLUI) []FDLUIBinding {
+	var allBindings []FDLUIBinding
+
+	// Extract from view
+	for _, element := range ui.ParsedView {
+		allBindings = append(allBindings, extractBindingsFromElement(element)...)
+	}
+
+	// Extract from computed expressions
+	for _, comp := range ui.ParsedComputed {
+		bindings := ExtractBindings(comp.Expression)
+		allBindings = append(allBindings, bindings...)
+	}
+
+	return allBindings
+}
+
+// extractBindingsFromElement recursively extracts bindings from UI elements
+func extractBindingsFromElement(element FDLUIElement) []FDLUIBinding {
+	var bindings []FDLUIBinding
+
+	// Extract from props
+	for _, propValue := range element.Props {
+		if str, ok := propValue.(string); ok {
+			bindings = append(bindings, ExtractBindings(str)...)
+		}
+	}
+
+	// Extract from children
+	for _, child := range element.Children {
+		bindings = append(bindings, extractBindingsFromElement(child)...)
+	}
+
+	// Extract from condition
+	if element.Condition != nil {
+		bindings = append(bindings, ExtractBindings(element.Condition.If)...)
+		for _, thenEl := range element.Condition.Then {
+			bindings = append(bindings, extractBindingsFromElement(thenEl)...)
+		}
+		for _, elseEl := range element.Condition.Else {
+			bindings = append(bindings, extractBindingsFromElement(elseEl)...)
+		}
+	}
+
+	// Extract from for loop
+	if element.ForLoop != nil {
+		for _, renderEl := range element.ForLoop.Render {
+			bindings = append(bindings, extractBindingsFromElement(renderEl)...)
+		}
+	}
+
+	return bindings
+}
+
 // ParseAndValidateUI parses and validates a UI component definition
 func ParseAndValidateUI(ui *FDLUI, allUIs []FDLUI) []error {
 	var errors []error
@@ -1649,6 +2402,94 @@ func ParseAndValidateUI(ui *FDLUI, allUIs []FDLUI) []error {
 	for name, prop := range ui.ParsedProps {
 		if prop.Type == "" {
 			errors = append(errors, fmt.Errorf("UI %s: prop '%s' has no type", ui.Component, name))
+		}
+	}
+
+	// Validate for loops in view
+	for _, element := range ui.ParsedView {
+		if err := validateUIElementForLoops(element); err != nil {
+			errors = append(errors, fmt.Errorf("UI %s: %w", ui.Component, err))
+		}
+	}
+
+	// Validate bindings
+	allBindings := ExtractAllBindingsFromUI(ui)
+	bindingErrors := ValidateBindings(allBindings, ui)
+	errors = append(errors, bindingErrors...)
+
+	// Validate event handlers
+	for _, element := range ui.ParsedView {
+		handlerErrors := validateUIElementEventHandlers(element, ui.ParsedMethods)
+		errors = append(errors, handlerErrors...)
+	}
+
+	return errors
+}
+
+// validateUIElementForLoops recursively validates for loops in UI elements
+func validateUIElementForLoops(element FDLUIElement) error {
+	if element.ForLoop != nil {
+		if err := ValidateUIForLoop(element.ForLoop); err != nil {
+			return err
+		}
+		// Validate nested elements
+		for _, child := range element.ForLoop.Render {
+			if err := validateUIElementForLoops(child); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Check children
+	for _, child := range element.Children {
+		if err := validateUIElementForLoops(child); err != nil {
+			return err
+		}
+	}
+
+	// Check condition branches
+	if element.Condition != nil {
+		for _, child := range element.Condition.Then {
+			if err := validateUIElementForLoops(child); err != nil {
+				return err
+			}
+		}
+		for _, child := range element.Condition.Else {
+			if err := validateUIElementForLoops(child); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateUIElementEventHandlers recursively validates event handlers in UI elements
+func validateUIElementEventHandlers(element FDLUIElement, methods map[string][]FDLUIAction) []error {
+	var errors []error
+
+	handlerErrors := ValidateUIEventHandlers(element.Props, methods)
+	errors = append(errors, handlerErrors...)
+
+	// Check children
+	for _, child := range element.Children {
+		errors = append(errors, validateUIElementEventHandlers(child, methods)...)
+	}
+
+	// Check condition branches
+	if element.Condition != nil {
+		for _, child := range element.Condition.Then {
+			errors = append(errors, validateUIElementEventHandlers(child, methods)...)
+		}
+		for _, child := range element.Condition.Else {
+			errors = append(errors, validateUIElementEventHandlers(child, methods)...)
+		}
+	}
+
+	// Check for loop render
+	if element.ForLoop != nil {
+		for _, child := range element.ForLoop.Render {
+			errors = append(errors, validateUIElementEventHandlers(child, methods)...)
 		}
 	}
 

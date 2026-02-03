@@ -169,12 +169,15 @@ func runFeatureGet(cmd *cobra.Command, args []string) error {
 	outputJSON(map[string]interface{}{
 		"success": true,
 		"feature": map[string]interface{}{
-			"id":          feature.ID,
-			"name":        feature.Name,
-			"description": feature.Description,
-			"spec":        feature.Spec,
-			"status":      feature.Status,
-			"created_at":  feature.CreatedAt,
+			"id":                 feature.ID,
+			"name":               feature.Name,
+			"description":        feature.Description,
+			"spec":               feature.Spec,
+			"status":             feature.Status,
+			"fdl":                feature.FDL,
+			"fdl_hash":           feature.FDLHash,
+			"skeleton_generated": feature.SkeletonGenerated,
+			"created_at":         feature.CreatedAt,
 		},
 	})
 

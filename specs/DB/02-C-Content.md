@@ -97,12 +97,16 @@ Expert 문서
 
 ```sql
 CREATE TABLE experts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,         -- Expert 이름 (파일명 기준)
-    file_path TEXT NOT NULL,           -- .md 파일 경로
-    description TEXT,                  -- 간단한 설명
-    content TEXT NOT NULL,             -- 전체 내용
-    content_hash TEXT NOT NULL,        -- 내용 해시 (동기화 감지용)
+    id TEXT PRIMARY KEY,               -- Expert ID (폴더명, e.g., "backend-go-gin")
+    name TEXT NOT NULL,                -- Expert 이름
+    version TEXT DEFAULT '1.0.0',      -- 버전
+    domain TEXT DEFAULT '',            -- 도메인 설명
+    language TEXT DEFAULT '',          -- 주 언어 (Go, Python 등)
+    framework TEXT DEFAULT '',         -- 주 프레임워크 (GIN, FastAPI 등)
+    path TEXT NOT NULL,                -- EXPERT.md 파일 경로
+    description TEXT DEFAULT '',       -- 간단한 설명
+    content TEXT DEFAULT '',           -- EXPERT.md 전체 내용
+    content_hash TEXT DEFAULT '',      -- 내용 해시 (동기화 감지용)
     content_backup TEXT DEFAULT '',    -- VSCode 편집 전 백업
     status TEXT DEFAULT 'active'
         CHECK(status IN ('active', 'archived')),
@@ -116,9 +120,12 @@ CREATE TABLE experts (
 <project>/
 ├── .claritask/
 │   └── experts/
-│       ├── backend.md
-│       ├── frontend.md
-│       └── database.md
+│       ├── backend-go-gin/
+│       │   └── EXPERT.md
+│       ├── frontend-react/
+│       │   └── EXPERT.md
+│       └── devops-k8s/
+│           └── EXPERT.md
 ```
 
 **동기화 정책**:
@@ -128,13 +135,32 @@ CREATE TABLE experts (
 
 ---
 
+## project_experts
+
+프로젝트-Expert 연결 (프로젝트 레벨 할당)
+
+```sql
+CREATE TABLE project_experts (
+    project_id TEXT NOT NULL,
+    expert_id TEXT NOT NULL,
+    assigned_at TEXT NOT NULL,
+    PRIMARY KEY (project_id, expert_id),
+    FOREIGN KEY (project_id) REFERENCES projects(id),
+    FOREIGN KEY (expert_id) REFERENCES experts(id)
+);
+```
+
+**용도**: 프로젝트에 할당된 Expert. Task pop 시 manifest에 포함됨.
+
+---
+
 ## expert_assignments
 
-Expert-Feature 연결
+Expert-Feature 연결 (Feature 레벨 할당)
 
 ```sql
 CREATE TABLE expert_assignments (
-    expert_id INTEGER NOT NULL,
+    expert_id TEXT NOT NULL,
     feature_id INTEGER NOT NULL,
     created_at TEXT NOT NULL,
     PRIMARY KEY (expert_id, feature_id),
@@ -160,6 +186,7 @@ CREATE INDEX idx_skeletons_layer ON skeletons(layer);
 
 -- Expert 조회 최적화
 CREATE INDEX idx_experts_status ON experts(status);
+CREATE INDEX idx_project_experts_project ON project_experts(project_id);
 CREATE INDEX idx_expert_assignments_feature ON expert_assignments(feature_id);
 ```
 
