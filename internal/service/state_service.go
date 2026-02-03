@@ -103,8 +103,8 @@ func UpdateCurrentState(database *db.DB, projectID string, featureID, taskID, ne
 	return nil
 }
 
-// InitState initializes state for a new project
-func InitState(database *db.DB, projectID string) error {
+// InitializeProjectState initializes state for a new project
+func InitializeProjectState(database *db.DB, projectID string) error {
 	if err := SetState(database, StateCurrentProject, projectID); err != nil {
 		return err
 	}

@@ -3,121 +3,135 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 
 	"github.com/spf13/cobra"
-	"parkjunwoo.com/claritask/internal/db"
 	"parkjunwoo.com/claritask/internal/service"
 )
 
 var initCmd = &cobra.Command{
-	Use:   "init <project-id> [description]",
-	Short: "Initialize a new project",
-	Args:  cobra.RangeArgs(1, 2),
-	RunE:  runInit,
+	Use:   "init <project-id>",
+	Short: "Initialize a new project with LLM collaboration",
+	Long: `Initialize a new project. This command:
+1. Creates .claritask/db database
+2. Analyzes project files using LLM
+3. Generates tech/design configuration
+4. Creates specs document with feedback loop
+
+Use --skip-analysis --skip-specs for quick initialization without LLM.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runInit,
+}
+
+func init() {
+	initCmd.Flags().StringP("name", "n", "", "Project name (default: project-id)")
+	initCmd.Flags().StringP("description", "d", "", "Project description")
+	initCmd.Flags().Bool("skip-analysis", false, "Skip context analysis")
+	initCmd.Flags().Bool("skip-specs", false, "Skip specs generation")
+	initCmd.Flags().Bool("non-interactive", false, "Non-interactive mode (auto approve)")
+	initCmd.Flags().Bool("force", false, "Overwrite existing database")
+	initCmd.Flags().Bool("resume", false, "Resume interrupted initialization")
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
-	projectID := args[0]
-	description := ""
-	if len(args) > 1 {
-		description = args[1]
+	// Get flags
+	name, _ := cmd.Flags().GetString("name")
+	description, _ := cmd.Flags().GetString("description")
+	skipAnalysis, _ := cmd.Flags().GetBool("skip-analysis")
+	skipSpecs, _ := cmd.Flags().GetBool("skip-specs")
+	nonInteractive, _ := cmd.Flags().GetBool("non-interactive")
+	force, _ := cmd.Flags().GetBool("force")
+	resume, _ := cmd.Flags().GetBool("resume")
+
+	// Handle --resume
+	if resume {
+		return runInitResume()
 	}
 
+	// Project ID is required when not resuming
+	if len(args) < 1 {
+		outputError(fmt.Errorf("project-id is required"))
+		return nil
+	}
+
+	projectID := args[0]
+
 	// Validate project ID
-	if err := validateProjectID(projectID); err != nil {
+	if err := service.ValidateProjectID(projectID); err != nil {
 		outputError(err)
 		return nil
 	}
 
-	// Get current working directory
-	cwd, err := os.Getwd()
+	// Get working directory
+	workDir, err := os.Getwd()
 	if err != nil {
 		outputError(fmt.Errorf("get working directory: %w", err))
 		return nil
 	}
 
-	projectPath := filepath.Join(cwd, projectID)
-	claritaskPath := filepath.Join(projectPath, ".claritask")
-	dbPath := filepath.Join(claritaskPath, "db")
-
-	// Check if directory already exists
-	if _, err := os.Stat(projectPath); !os.IsNotExist(err) {
-		outputError(fmt.Errorf("directory already exists: %s", projectPath))
-		return nil
+	// Build config
+	config := service.InitConfig{
+		ProjectID:      projectID,
+		Name:           name,
+		Description:    description,
+		SkipAnalysis:   skipAnalysis,
+		SkipSpecs:      skipSpecs,
+		NonInteractive: nonInteractive,
+		Force:          force,
+		WorkDir:        workDir,
 	}
 
-	// Create project directory
-	if err := os.MkdirAll(claritaskPath, 0755); err != nil {
-		outputError(fmt.Errorf("create directory: %w", err))
-		return nil
+	// Set default name
+	if config.Name == "" {
+		config.Name = projectID
 	}
 
-	// Open database and run migrations
-	database, err := db.Open(dbPath)
+	// Run init process
+	result, err := service.RunInit(config)
 	if err != nil {
-		outputError(fmt.Errorf("open database: %w", err))
-		return nil
-	}
-	defer database.Close()
-
-	if err := database.Migrate(); err != nil {
-		outputError(fmt.Errorf("migrate database: %w", err))
+		// Error already printed by service
 		return nil
 	}
 
-	// Create project in database
-	if err := service.CreateProject(database, projectID, projectID, description); err != nil {
-		outputError(fmt.Errorf("create project: %w", err))
-		return nil
-	}
-
-	// Initialize state
-	if err := service.InitState(database, projectID); err != nil {
-		outputError(fmt.Errorf("init state: %w", err))
-		return nil
-	}
-
-	// Create CLAUDE.md
-	claudeContent := fmt.Sprintf(claudeTemplate, projectID, description)
-	claudePath := filepath.Join(projectPath, "CLAUDE.md")
-	if err := os.WriteFile(claudePath, []byte(claudeContent), 0644); err != nil {
-		outputError(fmt.Errorf("create CLAUDE.md: %w", err))
+	// Output JSON result for scripting
+	if !result.Success {
+		outputError(fmt.Errorf(result.Error))
 		return nil
 	}
 
 	outputJSON(map[string]interface{}{
-		"success":    true,
-		"project_id": projectID,
-		"path":       projectPath,
-		"message":    "Project initialized successfully",
+		"success":    result.Success,
+		"project_id": result.ProjectID,
+		"db_path":    result.DBPath,
+		"specs_path": result.SpecsPath,
 	})
 
 	return nil
 }
 
-func validateProjectID(id string) error {
-	matched, _ := regexp.MatchString(`^[a-z0-9_-]+$`, id)
-	if !matched {
-		return fmt.Errorf("invalid project ID: %s (only lowercase letters, numbers, hyphens, and underscores allowed)", id)
+func runInitResume() error {
+	workDir, err := os.Getwd()
+	if err != nil {
+		outputError(fmt.Errorf("get working directory: %w", err))
+		return nil
 	}
+
+	result, err := service.ResumeInit(workDir)
+	if err != nil {
+		// Error already printed by service
+		return nil
+	}
+
+	if !result.Success {
+		outputError(fmt.Errorf(result.Error))
+		return nil
+	}
+
+	outputJSON(map[string]interface{}{
+		"success":    result.Success,
+		"project_id": result.ProjectID,
+		"db_path":    result.DBPath,
+		"specs_path": result.SpecsPath,
+	})
+
 	return nil
 }
-
-const claudeTemplate = `# %s
-
-## Description
-%s
-
-## Tech Stack
-- Backend:
-- Frontend:
-- Database:
-
-## Commands
-- ` + "`clari project set '<json>'`" + ` - 프로젝트 설정
-- ` + "`clari required`" + ` - 필수 입력 확인
-- ` + "`clari project plan`" + ` - 플래닝 시작
-- ` + "`clari project start`" + ` - 실행 시작
-`

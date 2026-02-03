@@ -222,11 +222,11 @@ func TestUpdateCurrentStatePartial(t *testing.T) {
 	}
 }
 
-func TestInitState(t *testing.T) {
+func TestInitializeProjectState(t *testing.T) {
 	database, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	err := service.InitState(database, "my-project")
+	err := service.InitializeProjectState(database, "my-project")
 	if err != nil {
 		t.Fatalf("failed to init state: %v", err)
 	}
@@ -247,7 +247,7 @@ func TestInitState(t *testing.T) {
 	}
 }
 
-func TestInitStateOverwrite(t *testing.T) {
+func TestInitializeProjectStateOverwrite(t *testing.T) {
 	database, cleanup := setupTestDB(t)
 	defer cleanup()
 
@@ -256,7 +256,7 @@ func TestInitStateOverwrite(t *testing.T) {
 	service.SetState(database, "current_task", "5")
 
 	// Init should overwrite
-	err := service.InitState(database, "new-project")
+	err := service.InitializeProjectState(database, "new-project")
 	if err != nil {
 		t.Fatalf("failed to init state: %v", err)
 	}
