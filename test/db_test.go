@@ -95,7 +95,7 @@ func TestDBMigrate(t *testing.T) {
 	}
 
 	// Check all tables exist
-	tables := []string{"projects", "phases", "tasks", "context", "tech", "design", "state", "memos"}
+	tables := []string{"projects", "features", "tasks", "context", "tech", "design", "state", "memos"}
 	for _, table := range tables {
 		var name string
 		err := database.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name)
@@ -254,16 +254,16 @@ func TestDBMigrateTableSchema(t *testing.T) {
 		t.Errorf("failed to insert into projects: %v", err)
 	}
 
-	// phases table
-	_, err = database.Exec("INSERT INTO phases (project_id, name, description, order_num, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-		"test", "Phase 1", "Description", 1, "pending", now)
+	// features table
+	_, err = database.Exec("INSERT INTO features (project_id, name, description, status, created_at) VALUES (?, ?, ?, ?, ?)",
+		"test", "Feature 1", "Description", "pending", now)
 	if err != nil {
-		t.Errorf("failed to insert into phases: %v", err)
+		t.Errorf("failed to insert into features: %v", err)
 	}
 
 	// tasks table
-	_, err = database.Exec(`INSERT INTO tasks (phase_id, title, level, skill, "references", content, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		1, "Task 1", "leaf", "coding", "[]", "content", "pending", now)
+	_, err = database.Exec(`INSERT INTO tasks (feature_id, title, content, status, created_at) VALUES (?, ?, ?, ?, ?)`,
+		1, "Task 1", "content", "pending", now)
 	if err != nil {
 		t.Errorf("failed to insert into tasks: %v", err)
 	}

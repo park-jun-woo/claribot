@@ -57,7 +57,6 @@ func init() {
 	rootCmd.AddCommand(techCmd)
 	rootCmd.AddCommand(designCmd)
 	rootCmd.AddCommand(requiredCmd)
-	rootCmd.AddCommand(phaseCmd)
 	rootCmd.AddCommand(taskCmd)
 	rootCmd.AddCommand(memoCmd)
 	rootCmd.AddCommand(featureCmd)

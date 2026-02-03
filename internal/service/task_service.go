@@ -12,15 +12,10 @@ import (
 
 // TaskCreateInput represents input for creating a task
 type TaskCreateInput struct {
-	PhaseID        int64
-	FeatureID      *int64
+	FeatureID      int64
 	SkeletonID     *int64
-	ParentID       *int64
 	Title          string
 	Content        string
-	Level          string
-	Skill          string
-	References     []string
 	TargetFile     string
 	TargetLine     *int
 	TargetFunction string
@@ -29,21 +24,13 @@ type TaskCreateInput struct {
 // CreateTask creates a new task
 func CreateTask(database *db.DB, input TaskCreateInput) (int64, error) {
 	now := db.TimeNow()
-	refs := "[]"
-	if len(input.References) > 0 {
-		refsJSON, err := json.Marshal(input.References)
-		if err != nil {
-			return 0, fmt.Errorf("marshal references: %w", err)
-		}
-		refs = string(refsJSON)
-	}
 
 	result, err := database.Exec(
-		`INSERT INTO tasks (phase_id, feature_id, skeleton_id, parent_id, title, content, level, skill, "references",
+		`INSERT INTO tasks (feature_id, skeleton_id, title, content,
 		 target_file, target_line, target_function, status, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-		input.PhaseID, input.FeatureID, input.SkeletonID, input.ParentID, input.Title, input.Content,
-		input.Level, input.Skill, refs, input.TargetFile, input.TargetLine, input.TargetFunction, now,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+		input.FeatureID, input.SkeletonID, input.Title, input.Content,
+		input.TargetFile, input.TargetLine, input.TargetFunction, now,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("create task: %w", err)
@@ -72,8 +59,8 @@ func GetTask(database *db.DB, id interface{}) (*model.Task, error) {
 	}
 
 	row := database.QueryRow(
-		`SELECT id, phase_id, parent_id, status, title, level, skill, "references",
-		        content, result, error, feature_id, skeleton_id, target_file, target_line, target_function,
+		`SELECT id, feature_id, skeleton_id, status, title, content,
+		        target_file, target_line, target_function, result, error,
 		        created_at, started_at, completed_at, failed_at
 		 FROM tasks WHERE id = ?`, idInt,
 	)
@@ -82,17 +69,15 @@ func GetTask(database *db.DB, id interface{}) (*model.Task, error) {
 
 func scanTask(row *sql.Row) (*model.Task, error) {
 	var t model.Task
-	var idInt, phaseIDInt int64
-	var parentID sql.NullInt64
-	var featureID, skeletonID sql.NullInt64
+	var idInt, featureIDInt int64
+	var skeletonID sql.NullInt64
 	var targetLine sql.NullInt64
-	var refs string
 	var createdAt string
 	var startedAt, completedAt, failedAt sql.NullString
 
 	err := row.Scan(
-		&idInt, &phaseIDInt, &parentID, &t.Status, &t.Title, &t.Level, &t.Skill, &refs,
-		&t.Content, &t.Result, &t.Error, &featureID, &skeletonID, &t.TargetFile, &targetLine, &t.TargetFunction,
+		&idInt, &featureIDInt, &skeletonID, &t.Status, &t.Title, &t.Content,
+		&t.TargetFile, &targetLine, &t.TargetFunction, &t.Result, &t.Error,
 		&createdAt, &startedAt, &completedAt, &failedAt,
 	)
 	if err != nil {
@@ -100,24 +85,13 @@ func scanTask(row *sql.Row) (*model.Task, error) {
 	}
 
 	t.ID = strconv.FormatInt(idInt, 10)
-	t.PhaseID = strconv.FormatInt(phaseIDInt, 10)
-	if parentID.Valid {
-		s := strconv.FormatInt(parentID.Int64, 10)
-		t.ParentID = &s
-	}
-	if featureID.Valid {
-		t.FeatureID = &featureID.Int64
-	}
+	t.FeatureID = featureIDInt
 	if skeletonID.Valid {
 		t.SkeletonID = &skeletonID.Int64
 	}
 	if targetLine.Valid {
 		line := int(targetLine.Int64)
 		t.TargetLine = &line
-	}
-
-	if err := json.Unmarshal([]byte(refs), &t.References); err != nil {
-		t.References = []string{}
 	}
 
 	t.CreatedAt, _ = db.ParseTime(createdAt)
@@ -142,17 +116,15 @@ func scanTasks(rows *sql.Rows) ([]model.Task, error) {
 	var tasks []model.Task
 	for rows.Next() {
 		var t model.Task
-		var idInt, phaseIDInt int64
-		var parentID sql.NullInt64
-		var featureID, skeletonID sql.NullInt64
+		var idInt, featureIDInt int64
+		var skeletonID sql.NullInt64
 		var targetLine sql.NullInt64
-		var refs string
 		var createdAt string
 		var startedAt, completedAt, failedAt sql.NullString
 
 		err := rows.Scan(
-			&idInt, &phaseIDInt, &parentID, &t.Status, &t.Title, &t.Level, &t.Skill, &refs,
-			&t.Content, &t.Result, &t.Error, &featureID, &skeletonID, &t.TargetFile, &targetLine, &t.TargetFunction,
+			&idInt, &featureIDInt, &skeletonID, &t.Status, &t.Title, &t.Content,
+			&t.TargetFile, &targetLine, &t.TargetFunction, &t.Result, &t.Error,
 			&createdAt, &startedAt, &completedAt, &failedAt,
 		)
 		if err != nil {
@@ -160,24 +132,13 @@ func scanTasks(rows *sql.Rows) ([]model.Task, error) {
 		}
 
 		t.ID = strconv.FormatInt(idInt, 10)
-		t.PhaseID = strconv.FormatInt(phaseIDInt, 10)
-		if parentID.Valid {
-			s := strconv.FormatInt(parentID.Int64, 10)
-			t.ParentID = &s
-		}
-		if featureID.Valid {
-			t.FeatureID = &featureID.Int64
-		}
+		t.FeatureID = featureIDInt
 		if skeletonID.Valid {
 			t.SkeletonID = &skeletonID.Int64
 		}
 		if targetLine.Valid {
 			line := int(targetLine.Int64)
 			t.TargetLine = &line
-		}
-
-		if err := json.Unmarshal([]byte(refs), &t.References); err != nil {
-			t.References = []string{}
 		}
 
 		t.CreatedAt, _ = db.ParseTime(createdAt)
@@ -199,32 +160,32 @@ func scanTasks(rows *sql.Rows) ([]model.Task, error) {
 	return tasks, nil
 }
 
-// ListTasks lists all tasks for a phase
-func ListTasks(database *db.DB, phaseID int64) ([]model.Task, error) {
+// ListTasksByFeature lists all tasks for a feature
+func ListTasksByFeature(database *db.DB, featureID int64) ([]model.Task, error) {
 	rows, err := database.Query(
-		`SELECT id, phase_id, parent_id, status, title, level, skill, "references",
-		        content, result, error, feature_id, skeleton_id, target_file, target_line, target_function,
+		`SELECT id, feature_id, skeleton_id, status, title, content,
+		        target_file, target_line, target_function, result, error,
 		        created_at, started_at, completed_at, failed_at
-		 FROM tasks WHERE phase_id = ? ORDER BY id`, phaseID,
+		 FROM tasks WHERE feature_id = ? ORDER BY id`, featureID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list tasks: %w", err)
+		return nil, fmt.Errorf("list tasks by feature: %w", err)
 	}
 	defer rows.Close()
 
 	return scanTasks(rows)
 }
 
-// ListTasksByFeature lists all tasks for a feature
-func ListTasksByFeature(database *db.DB, featureID int64) ([]model.Task, error) {
+// ListAllTasks lists all tasks
+func ListAllTasks(database *db.DB) ([]model.Task, error) {
 	rows, err := database.Query(
-		`SELECT id, phase_id, parent_id, status, title, level, skill, "references",
-		        content, result, error, feature_id, skeleton_id, target_file, target_line, target_function,
+		`SELECT id, feature_id, skeleton_id, status, title, content,
+		        target_file, target_line, target_function, result, error,
 		        created_at, started_at, completed_at, failed_at
-		 FROM tasks WHERE feature_id = ? ORDER BY id`, featureID,
+		 FROM tasks ORDER BY id`,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list tasks by feature: %w", err)
+		return nil, fmt.Errorf("list all tasks: %w", err)
 	}
 	defer rows.Close()
 
@@ -292,8 +253,8 @@ type TaskPopResult struct {
 func PopTask(database *db.DB) (*TaskPopResult, error) {
 	// Get next pending task
 	row := database.QueryRow(
-		`SELECT id, phase_id, parent_id, status, title, level, skill, "references",
-		        content, result, error, feature_id, skeleton_id, target_file, target_line, target_function,
+		`SELECT id, feature_id, skeleton_id, status, title, content,
+		        target_file, target_line, target_function, result, error,
 		        created_at, started_at, completed_at, failed_at
 		 FROM tasks WHERE status = 'pending' ORDER BY id LIMIT 1`,
 	)
@@ -360,7 +321,6 @@ func PopTask(database *db.DB) (*TaskPopResult, error) {
 	}
 
 	// Update current state
-	phaseID, _ := strconv.ParseInt(task.PhaseID, 10, 64)
 	project, _ := GetProject(database)
 	projectID := ""
 	if project != nil {
@@ -372,12 +332,12 @@ func PopTask(database *db.DB) (*TaskPopResult, error) {
 	row = database.QueryRow(`SELECT id FROM tasks WHERE status = 'pending' AND id > ? ORDER BY id LIMIT 1`, taskID)
 	row.Scan(&nextTaskID)
 
-	UpdateCurrentState(database, projectID, task.PhaseID, taskID, nextTaskID)
+	UpdateCurrentState(database, projectID, task.FeatureID, taskID, nextTaskID)
 
-	// Start phase if pending
-	phase, err := GetPhase(database, phaseID)
-	if err == nil && phase.Status == "pending" {
-		StartPhase(database, phaseID)
+	// Start feature if pending
+	feature, err := GetFeature(database, task.FeatureID)
+	if err == nil && feature.Status == "pending" {
+		StartFeature(database, task.FeatureID)
 	}
 
 	return &TaskPopResult{Task: task, Manifest: manifest}, nil
@@ -441,12 +401,10 @@ func PopTaskFull(database *db.DB) (*model.TaskPopResponse, error) {
 		Task: task,
 	}
 
-	// Get FDL info if feature is associated
-	if task.FeatureID != nil {
-		fdlInfo, err := GetFDLInfoFromDB(database, *task.FeatureID)
-		if err == nil && fdlInfo != nil {
-			response.FDL = fdlInfo
-		}
+	// Get FDL info
+	fdlInfo, err := GetFDLInfoFromDB(database, task.FeatureID)
+	if err == nil && fdlInfo != nil {
+		response.FDL = fdlInfo
 	}
 
 	// Get Skeleton info if skeleton is associated
@@ -488,16 +446,14 @@ func PopTaskFull(database *db.DB) (*model.TaskPopResponse, error) {
 	}
 
 	// Add feature info to manifest
-	if task.FeatureID != nil {
-		feature, err := GetFeature(database, *task.FeatureID)
-		if err == nil && feature != nil {
-			manifest.Feature = map[string]interface{}{
-				"id":          feature.ID,
-				"name":        feature.Name,
-				"description": feature.Description,
-				"spec":        feature.Spec,
-				"status":      feature.Status,
-			}
+	feature, err := GetFeature(database, task.FeatureID)
+	if err == nil && feature != nil {
+		manifest.Feature = map[string]interface{}{
+			"id":          feature.ID,
+			"name":        feature.Name,
+			"description": feature.Description,
+			"spec":        feature.Spec,
+			"status":      feature.Status,
 		}
 	}
 
@@ -521,7 +477,6 @@ func PopTaskFull(database *db.DB) (*model.TaskPopResponse, error) {
 	response.Manifest = manifest
 
 	// Update current state
-	phaseID, _ := strconv.ParseInt(task.PhaseID, 10, 64)
 	project, _ := GetProject(database)
 	projectID := ""
 	if project != nil {
@@ -531,12 +486,11 @@ func PopTaskFull(database *db.DB) (*model.TaskPopResponse, error) {
 	var nextTaskID int64
 	row := database.QueryRow(`SELECT id FROM tasks WHERE status = 'pending' AND id > ? ORDER BY id LIMIT 1`, taskID)
 	row.Scan(&nextTaskID)
-	UpdateCurrentState(database, projectID, task.PhaseID, taskID, nextTaskID)
+	UpdateCurrentState(database, projectID, task.FeatureID, taskID, nextTaskID)
 
-	// Start phase if pending
-	phase, err := GetPhase(database, phaseID)
-	if err == nil && phase.Status == "pending" {
-		StartPhase(database, phaseID)
+	// Start feature if pending
+	if feature != nil && feature.Status == "pending" {
+		StartFeature(database, task.FeatureID)
 	}
 
 	return response, nil
@@ -545,8 +499,8 @@ func PopTaskFull(database *db.DB) (*model.TaskPopResponse, error) {
 // GetNextExecutableTask returns the next pending task with all dependencies completed
 func GetNextExecutableTask(database *db.DB) (*model.Task, error) {
 	rows, err := database.Query(
-		`SELECT id, phase_id, parent_id, status, title, level, skill, "references",
-		        content, result, error, feature_id, skeleton_id, target_file, target_line, target_function,
+		`SELECT id, feature_id, skeleton_id, status, title, content,
+		        target_file, target_line, target_function, result, error,
 		        created_at, started_at, completed_at, failed_at
 		 FROM tasks
 		 WHERE status = 'pending'
@@ -574,19 +528,18 @@ func GetNextExecutableTask(database *db.DB) (*model.Task, error) {
 
 // TaskListItem represents a task in list view with dependencies
 type TaskListItem struct {
-	ID             string  `json:"id"`
-	PhaseID        string  `json:"phase_id"`
-	FeatureID      *int64  `json:"feature_id,omitempty"`
-	Title          string  `json:"title"`
-	Status         string  `json:"status"`
-	TargetFile     string  `json:"target_file,omitempty"`
-	TargetFunction string  `json:"target_function,omitempty"`
+	ID             string   `json:"id"`
+	FeatureID      int64    `json:"feature_id"`
+	Title          string   `json:"title"`
+	Status         string   `json:"status"`
+	TargetFile     string   `json:"target_file,omitempty"`
+	TargetFunction string   `json:"target_function,omitempty"`
 	DependsOn      []string `json:"depends_on,omitempty"`
 }
 
 // ListTasksWithDependencies lists tasks with dependency information
-func ListTasksWithDependencies(database *db.DB, phaseID int64) ([]TaskListItem, error) {
-	tasks, err := ListTasks(database, phaseID)
+func ListTasksWithDependencies(database *db.DB, featureID int64) ([]TaskListItem, error) {
+	tasks, err := ListTasksByFeature(database, featureID)
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +548,6 @@ func ListTasksWithDependencies(database *db.DB, phaseID int64) ([]TaskListItem, 
 	for _, t := range tasks {
 		item := TaskListItem{
 			ID:             t.ID,
-			PhaseID:        t.PhaseID,
 			FeatureID:      t.FeatureID,
 			Title:          t.Title,
 			Status:         t.Status,

@@ -17,13 +17,9 @@ func TestAddTaskEdge(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
 
 	// Add edge: task2 depends on task1
 	err := service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
@@ -37,13 +33,9 @@ func TestRemoveTaskEdge(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
 
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
 
@@ -58,14 +50,10 @@ func TestGetTaskEdges(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
-	task3, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 3"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
+	task3, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 3"})
 
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
 	service.AddTaskEdge(database, taskIDStr(task3), taskIDStr(task2))
@@ -85,13 +73,9 @@ func TestGetTaskDependencies(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
 
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
 
@@ -114,13 +98,9 @@ func TestGetTaskDependents(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
 
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
 
@@ -139,14 +119,10 @@ func TestCheckTaskCycle(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
-	task3, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 3"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
+	task3, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 3"})
 
 	// Create chain: task3 -> task2 -> task1
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
@@ -168,20 +144,16 @@ func TestTopologicalSortTasks(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
-	task3, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 3"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
+	task3, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 3"})
 
 	// Create chain: task3 -> task2 -> task1
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
 	service.AddTaskEdge(database, taskIDStr(task3), taskIDStr(task2))
 
-	sorted, err := service.TopologicalSortTasks(database, phaseID)
+	sorted, err := service.TopologicalSortTasks(database, featureID)
 	if err != nil {
 		t.Fatalf("TopologicalSortTasks failed: %v", err)
 	}
@@ -213,13 +185,9 @@ func TestGetExecutableTasks(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
 
 	// Task2 depends on Task1
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
@@ -244,13 +212,9 @@ func TestIsTaskExecutable(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
 
 	// Task2 depends on Task1
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
@@ -282,20 +246,16 @@ func TestListAllEdges(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	// Create feature edges
-	feature1, _ := service.CreateFeature(database, "test-project", "Feature1", "")
-	feature2, _ := service.CreateFeature(database, "test-project", "Feature2", "")
+	feature1, _ := service.CreateFeature(database, "test-project", "Feature2", "")
+	feature2, _ := service.CreateFeature(database, "test-project", "Feature3", "")
 	service.AddFeatureEdge(database, feature2, feature1)
 
 	// Create task edges
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
 	service.AddTaskEdge(database, taskIDStr(task2), taskIDStr(task1))
 
 	result, err := service.ListAllEdges(database)

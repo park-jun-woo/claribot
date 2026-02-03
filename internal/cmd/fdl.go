@@ -400,39 +400,6 @@ func runFDLTasks(cmd *cobra.Command, args []string) error {
 		tech = make(map[string]interface{})
 	}
 
-	// Get project and default phase
-	project, err := service.GetProject(database)
-	if err != nil {
-		outputError(fmt.Errorf("get project: %w", err))
-		return nil
-	}
-
-	// Get or create phase for this feature
-	phases, err := service.ListPhases(database, project.ID)
-	if err != nil {
-		outputError(fmt.Errorf("list phases: %w", err))
-		return nil
-	}
-
-	var phaseID int64
-	if len(phases) > 0 {
-		// Use the last phase
-		phaseID = phases[len(phases)-1].ID
-	} else {
-		// Create a phase
-		phaseInput := service.PhaseCreateInput{
-			ProjectID:   project.ID,
-			Name:        fmt.Sprintf("Feature: %s", spec.Feature),
-			Description: spec.Description,
-			OrderNum:    1,
-		}
-		phaseID, err = service.CreatePhase(database, phaseInput)
-		if err != nil {
-			outputError(fmt.Errorf("create phase: %w", err))
-			return nil
-		}
-	}
-
 	// Extract task mappings
 	mappings, err := service.ExtractTaskMappings(spec, tech)
 	if err != nil {
@@ -446,10 +413,11 @@ func runFDLTasks(cmd *cobra.Command, args []string) error {
 
 	for _, m := range mappings {
 		taskInput := service.TaskCreateInput{
-			PhaseID: phaseID,
-			Title:   m.Title,
-			Content: m.Content,
-			Level:   "leaf",
+			FeatureID:      featureID,
+			Title:          m.Title,
+			Content:        m.Content,
+			TargetFile:     m.TargetFile,
+			TargetFunction: m.TargetFunction,
 		}
 
 		taskID, err := service.CreateTask(database, taskInput)
@@ -459,10 +427,6 @@ func runFDLTasks(cmd *cobra.Command, args []string) error {
 		}
 
 		taskIDMap[m.Title] = taskID
-
-		// Update task with feature-specific fields
-		database.Exec(`UPDATE tasks SET feature_id = ?, target_file = ?, target_function = ? WHERE id = ?`,
-			featureID, m.TargetFile, m.TargetFunction, taskID)
 
 		tasksCreated = append(tasksCreated, map[string]interface{}{
 			"id":              taskID,

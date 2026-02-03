@@ -66,33 +66,6 @@ func GetTaskEdges(database *db.DB) ([]model.TaskEdge, error) {
 	return edges, nil
 }
 
-// GetTaskEdgesByPhase retrieves task edges within a phase
-func GetTaskEdgesByPhase(database *db.DB, phaseID int64) ([]model.TaskEdge, error) {
-	rows, err := database.Query(
-		`SELECT e.from_task_id, e.to_task_id, e.created_at
-		 FROM task_edges e
-		 JOIN tasks t1 ON e.from_task_id = t1.id
-		 JOIN tasks t2 ON e.to_task_id = t2.id
-		 WHERE t1.phase_id = ? AND t2.phase_id = ?`, phaseID, phaseID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get task edges by phase: %w", err)
-	}
-	defer rows.Close()
-
-	var edges []model.TaskEdge
-	for rows.Next() {
-		var e model.TaskEdge
-		var createdAt string
-		if err := rows.Scan(&e.FromTaskID, &e.ToTaskID, &createdAt); err != nil {
-			return nil, fmt.Errorf("scan edge: %w", err)
-		}
-		e.CreatedAt, _ = db.ParseTime(createdAt)
-		edges = append(edges, e)
-	}
-	return edges, nil
-}
-
 // GetTaskEdgesByFeature retrieves task edges within a feature
 func GetTaskEdgesByFeature(database *db.DB, featureID int64) ([]model.TaskEdge, error) {
 	rows, err := database.Query(
@@ -123,9 +96,8 @@ func GetTaskEdgesByFeature(database *db.DB, featureID int64) ([]model.TaskEdge, 
 // GetTaskDependencies retrieves tasks that this task depends on
 func GetTaskDependencies(database *db.DB, taskID string) ([]model.Task, error) {
 	rows, err := database.Query(
-		`SELECT t.id, t.phase_id, t.parent_id, t.status, t.title, t.level, t.skill,
-		        t."references", t.content, t.result, t.error, t.feature_id, t.skeleton_id,
-		        t.target_file, t.target_line, t.target_function,
+		`SELECT t.id, t.feature_id, t.skeleton_id, t.status, t.title, t.content,
+		        t.target_file, t.target_line, t.target_function, t.result, t.error,
 		        t.created_at, t.started_at, t.completed_at, t.failed_at
 		 FROM tasks t
 		 JOIN task_edges e ON t.id = e.to_task_id
@@ -142,9 +114,8 @@ func GetTaskDependencies(database *db.DB, taskID string) ([]model.Task, error) {
 // GetTaskDependents retrieves tasks that depend on this task
 func GetTaskDependents(database *db.DB, taskID string) ([]model.Task, error) {
 	rows, err := database.Query(
-		`SELECT t.id, t.phase_id, t.parent_id, t.status, t.title, t.level, t.skill,
-		        t."references", t.content, t.result, t.error, t.feature_id, t.skeleton_id,
-		        t.target_file, t.target_line, t.target_function,
+		`SELECT t.id, t.feature_id, t.skeleton_id, t.status, t.title, t.content,
+		        t.target_file, t.target_line, t.target_function, t.result, t.error,
 		        t.created_at, t.started_at, t.completed_at, t.failed_at
 		 FROM tasks t
 		 JOIN task_edges e ON t.id = e.from_task_id
@@ -277,13 +248,13 @@ func DetectAllCycles(database *db.DB) ([][]string, error) {
 }
 
 // TopologicalSortTasks sorts tasks by dependency order using Kahn's algorithm
-func TopologicalSortTasks(database *db.DB, phaseID int64) ([]model.Task, error) {
-	tasks, err := ListTasks(database, phaseID)
+func TopologicalSortTasks(database *db.DB, featureID int64) ([]model.Task, error) {
+	tasks, err := ListTasksByFeature(database, featureID)
 	if err != nil {
 		return nil, err
 	}
 
-	edges, err := GetTaskEdgesByPhase(database, phaseID)
+	edges, err := GetTaskEdgesByFeature(database, featureID)
 	if err != nil {
 		return nil, err
 	}
@@ -390,9 +361,8 @@ func TopologicalSortFeatures(database *db.DB, projectID string) ([]model.Feature
 // GetExecutableTasks retrieves pending tasks with all dependencies completed
 func GetExecutableTasks(database *db.DB) ([]model.Task, error) {
 	rows, err := database.Query(
-		`SELECT t.id, t.phase_id, t.parent_id, t.status, t.title, t.level, t.skill,
-		        t."references", t.content, t.result, t.error, t.feature_id, t.skeleton_id,
-		        t.target_file, t.target_line, t.target_function,
+		`SELECT t.id, t.feature_id, t.skeleton_id, t.status, t.title, t.content,
+		        t.target_file, t.target_line, t.target_function, t.result, t.error,
 		        t.created_at, t.started_at, t.completed_at, t.failed_at
 		 FROM tasks t
 		 WHERE t.status = 'pending'

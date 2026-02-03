@@ -11,35 +11,19 @@ type Project struct {
 	CreatedAt   time.Time
 }
 
-// Phase - 단계 테이블
-type Phase struct {
-	ID          string
-	ProjectID   string
-	Name        string
-	Description string
-	OrderNum    int
-	Status      string // pending, active, done
-	CreatedAt   time.Time
-}
-
 // Task - 작업 테이블
 type Task struct {
 	ID             string
-	PhaseID        string
-	ParentID       *string // nullable
-	Status         string  // pending, doing, done, failed
+	FeatureID      int64  // Feature ID (required)
+	SkeletonID     *int64 // Skeleton ID (nullable)
+	Status         string // pending, doing, done, failed
 	Title          string
-	Level          string // "", "node", "leaf"
-	Skill          string
-	References     []string // JSON array
 	Content        string
+	TargetFile     string // 구현 대상 파일 경로
+	TargetLine     *int   // 구현 대상 라인 번호
+	TargetFunction string // 구현 대상 함수명
 	Result         string
 	Error          string
-	FeatureID      *int64  // Feature ID (nullable)
-	SkeletonID     *int64  // Skeleton ID (nullable)
-	TargetFile     string  // 구현 대상 파일 경로
-	TargetLine     *int    // 구현 대상 라인 번호
-	TargetFunction string  // 구현 대상 함수명
 	CreatedAt      time.Time
 	StartedAt      *time.Time
 	CompletedAt    *time.Time
@@ -78,7 +62,7 @@ type State struct {
 
 // Memo - 메모
 type Memo struct {
-	Scope     string // project, phase, task
+	Scope     string // project, feature, task
 	ScopeID   string
 	Key       string
 	Data      string // JSON

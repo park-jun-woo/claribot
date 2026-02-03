@@ -47,7 +47,7 @@ Go 언어 CLI 개발 전문가. Cobra 라이브러리와 SQLite를 사용한 고
 - 
 ### Report Process
 1. 코드 파일 목록(`cmd/*, internal/*, pkg/*, test/*`)을 확인한다.
-2. 파일을 하나씩 열어 분석하여 요약하고 `reports/<파일명>-report.md`를 작성한다.
+2. 파일을 하나씩 열어 분석하여 요약하고 `reports/<0000-00-00>/<파일명>-report.md`를 작성한다.
 3. 모든 파일을 분석하면 최종 전체 보고서(`reports/<0000-00-00>-report.md`)를 작성한다.
 
 ## Project Structure

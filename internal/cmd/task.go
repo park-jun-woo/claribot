@@ -61,9 +61,9 @@ var taskGetCmd = &cobra.Command{
 }
 
 var taskListCmd = &cobra.Command{
-	Use:   "list <phase_id>",
-	Short: "List tasks by phase",
-	Args:  cobra.ExactArgs(1),
+	Use:   "list [feature_id]",
+	Short: "List tasks (optionally by feature)",
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runTaskList,
 }
 
@@ -79,13 +79,12 @@ func init() {
 }
 
 type taskPushInput struct {
-	PhaseID    int64    `json:"phase_id"`
-	ParentID   *int64   `json:"parent_id"`
-	Title      string   `json:"title"`
-	Content    string   `json:"content"`
-	Level      string   `json:"level"`
-	Skill      string   `json:"skill"`
-	References []string `json:"references"`
+	FeatureID      int64  `json:"feature_id"`
+	Title          string `json:"title"`
+	Content        string `json:"content"`
+	TargetFile     string `json:"target_file"`
+	TargetLine     *int   `json:"target_line"`
+	TargetFunction string `json:"target_function"`
 }
 
 func runTaskPush(cmd *cobra.Command, args []string) error {
@@ -102,8 +101,8 @@ func runTaskPush(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if input.PhaseID == 0 {
-		outputError(fmt.Errorf("missing required field: phase_id"))
+	if input.FeatureID == 0 {
+		outputError(fmt.Errorf("missing required field: feature_id"))
 		return nil
 	}
 	if input.Title == "" {
@@ -116,13 +115,12 @@ func runTaskPush(cmd *cobra.Command, args []string) error {
 	}
 
 	taskInput := service.TaskCreateInput{
-		PhaseID:    input.PhaseID,
-		ParentID:   input.ParentID,
-		Title:      input.Title,
-		Content:    input.Content,
-		Level:      input.Level,
-		Skill:      input.Skill,
-		References: input.References,
+		FeatureID:      input.FeatureID,
+		Title:          input.Title,
+		Content:        input.Content,
+		TargetFile:     input.TargetFile,
+		TargetLine:     input.TargetLine,
+		TargetFunction: input.TargetFunction,
 	}
 
 	taskID, err := service.CreateTask(database, taskInput)
@@ -365,13 +363,30 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	}
 	defer database.Close()
 
-	phaseID, err := strconv.ParseInt(args[0], 10, 64)
-	if err != nil {
-		outputError(fmt.Errorf("invalid phase ID: %s", args[0]))
+	// If feature_id is provided, filter by feature
+	if len(args) > 0 {
+		featureID, err := strconv.ParseInt(args[0], 10, 64)
+		if err != nil {
+			outputError(fmt.Errorf("invalid feature ID: %s", args[0]))
+			return nil
+		}
+
+		tasks, err := service.ListTasksByFeature(database, featureID)
+		if err != nil {
+			outputError(fmt.Errorf("list tasks: %w", err))
+			return nil
+		}
+
+		outputJSON(map[string]interface{}{
+			"success": true,
+			"tasks":   tasks,
+			"total":   len(tasks),
+		})
 		return nil
 	}
 
-	tasks, err := service.ListTasks(database, phaseID)
+	// Otherwise list all tasks
+	tasks, err := service.ListAllTasks(database)
 	if err != nil {
 		outputError(fmt.Errorf("list tasks: %w", err))
 		return nil

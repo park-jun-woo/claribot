@@ -53,7 +53,7 @@ func init() {
 	// edge list flags
 	edgeListCmd.Flags().Bool("feature", false, "Show feature edges only")
 	edgeListCmd.Flags().Bool("task", false, "Show task edges only")
-	edgeListCmd.Flags().Int64("phase", 0, "Filter by phase ID")
+	edgeListCmd.Flags().Int64("feature-id", 0, "Filter by feature ID")
 
 	// edge remove flags
 	edgeRemoveCmd.Flags().Int64("from", 0, "From ID (required)")
@@ -174,7 +174,7 @@ func runEdgeList(cmd *cobra.Command, args []string) error {
 
 	featureOnly, _ := cmd.Flags().GetBool("feature")
 	taskOnly, _ := cmd.Flags().GetBool("task")
-	phaseID, _ := cmd.Flags().GetInt64("phase")
+	filterFeatureID, _ := cmd.Flags().GetInt64("feature-id")
 
 	result, err := service.ListAllEdges(database)
 	if err != nil {
@@ -192,11 +192,11 @@ func runEdgeList(cmd *cobra.Command, args []string) error {
 	}
 
 	if !featureOnly {
-		if phaseID > 0 {
-			// Filter task edges by phase
-			edges, err := service.GetTaskEdgesByPhase(database, phaseID)
+		if filterFeatureID > 0 {
+			// Filter task edges by feature
+			edges, err := service.GetTaskEdgesByFeature(database, filterFeatureID)
 			if err != nil {
-				outputError(fmt.Errorf("get task edges by phase: %w", err))
+				outputError(fmt.Errorf("get task edges by feature: %w", err))
 				return nil
 			}
 

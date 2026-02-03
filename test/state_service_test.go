@@ -149,8 +149,8 @@ func TestStateConstants(t *testing.T) {
 	if service.StateCurrentProject != "current_project" {
 		t.Errorf("expected StateCurrentProject='current_project', got '%s'", service.StateCurrentProject)
 	}
-	if service.StateCurrentPhase != "current_phase" {
-		t.Errorf("expected StateCurrentPhase='current_phase', got '%s'", service.StateCurrentPhase)
+	if service.StateCurrentFeature != "current_feature" {
+		t.Errorf("expected StateCurrentFeature='current_feature', got '%s'", service.StateCurrentFeature)
 	}
 	if service.StateCurrentTask != "current_task" {
 		t.Errorf("expected StateCurrentTask='current_task', got '%s'", service.StateCurrentTask)
@@ -164,7 +164,7 @@ func TestUpdateCurrentState(t *testing.T) {
 	database, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	err := service.UpdateCurrentState(database, "test-project", "1", 10, 11)
+	err := service.UpdateCurrentState(database, "test-project", 1, 10, 11)
 	if err != nil {
 		t.Fatalf("failed to update current state: %v", err)
 	}
@@ -174,8 +174,8 @@ func TestUpdateCurrentState(t *testing.T) {
 	if states["current_project"] != "test-project" {
 		t.Errorf("expected current_project='test-project', got '%s'", states["current_project"])
 	}
-	if states["current_phase"] != "1" {
-		t.Errorf("expected current_phase='1', got '%s'", states["current_phase"])
+	if states["current_feature"] != "1" {
+		t.Errorf("expected current_feature='1', got '%s'", states["current_feature"])
 	}
 	if states["current_task"] != "10" {
 		t.Errorf("expected current_task='10', got '%s'", states["current_task"])
@@ -189,7 +189,7 @@ func TestUpdateCurrentStateNoNextTask(t *testing.T) {
 	database, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	err := service.UpdateCurrentState(database, "test-project", "1", 10, 0)
+	err := service.UpdateCurrentState(database, "test-project", 1, 10, 0)
 	if err != nil {
 		t.Fatalf("failed to update current state: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestUpdateCurrentStatePartial(t *testing.T) {
 	defer cleanup()
 
 	// Only set project
-	err := service.UpdateCurrentState(database, "test-project", "", 0, 0)
+	err := service.UpdateCurrentState(database, "test-project", 0, 0, 0)
 	if err != nil {
 		t.Fatalf("failed to update current state: %v", err)
 	}
@@ -215,10 +215,10 @@ func TestUpdateCurrentStatePartial(t *testing.T) {
 		t.Errorf("expected current_project='test-project', got '%s'", projectValue)
 	}
 
-	// Phase should not be set (empty strings don't update)
-	phaseValue, _ := service.GetState(database, "current_phase")
-	if phaseValue != "" {
-		t.Errorf("expected current_phase='', got '%s'", phaseValue)
+	// Feature should not be set (0 doesn't update)
+	featureValue, _ := service.GetState(database, "current_feature")
+	if featureValue != "" {
+		t.Errorf("expected current_feature='', got '%s'", featureValue)
 	}
 }
 

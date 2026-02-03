@@ -36,46 +36,37 @@ func TestProjectStruct(t *testing.T) {
 	}
 }
 
-func TestPhaseStruct(t *testing.T) {
+func TestFeatureStruct(t *testing.T) {
 	t.Helper()
 	now := time.Now()
-	p := model.Phase{
-		ID:          "1",
+	f := model.Feature{
+		ID:          1,
 		ProjectID:   "test-project",
-		Name:        "Phase 1",
-		Description: "First phase",
-		OrderNum:    1,
+		Name:        "Feature 1",
+		Description: "First feature",
 		Status:      "pending",
 		CreatedAt:   now,
 	}
 
-	if p.ID != "1" {
-		t.Errorf("expected ID '1', got '%s'", p.ID)
+	if f.ID != 1 {
+		t.Errorf("expected ID 1, got %d", f.ID)
 	}
-	if p.ProjectID != "test-project" {
-		t.Errorf("expected ProjectID 'test-project', got '%s'", p.ProjectID)
+	if f.ProjectID != "test-project" {
+		t.Errorf("expected ProjectID 'test-project', got '%s'", f.ProjectID)
 	}
-	if p.OrderNum != 1 {
-		t.Errorf("expected OrderNum 1, got %d", p.OrderNum)
-	}
-	if p.Status != "pending" {
-		t.Errorf("expected Status 'pending', got '%s'", p.Status)
+	if f.Status != "pending" {
+		t.Errorf("expected Status 'pending', got '%s'", f.Status)
 	}
 }
 
 func TestTaskStruct(t *testing.T) {
 	t.Helper()
 	now := time.Now()
-	parentID := "1"
 	task := model.Task{
 		ID:          "1",
-		PhaseID:     "1",
-		ParentID:    &parentID,
+		FeatureID:   1,
 		Status:      "pending",
 		Title:       "Task 1",
-		Level:       "leaf",
-		Skill:       "coding",
-		References:  []string{"ref1", "ref2"},
 		Content:     "Task content",
 		Result:      "",
 		Error:       "",
@@ -88,29 +79,11 @@ func TestTaskStruct(t *testing.T) {
 	if task.ID != "1" {
 		t.Errorf("expected ID '1', got '%s'", task.ID)
 	}
-	if task.ParentID == nil || *task.ParentID != "1" {
-		t.Errorf("expected ParentID '1', got '%v'", task.ParentID)
-	}
-	if len(task.References) != 2 {
-		t.Errorf("expected 2 references, got %d", len(task.References))
+	if task.FeatureID != 1 {
+		t.Errorf("expected FeatureID 1, got %d", task.FeatureID)
 	}
 	if task.StartedAt != nil {
 		t.Errorf("expected StartedAt nil, got %v", task.StartedAt)
-	}
-}
-
-func TestTaskWithNilParentID(t *testing.T) {
-	t.Helper()
-	task := model.Task{
-		ID:       "1",
-		PhaseID:  "1",
-		ParentID: nil,
-		Status:   "pending",
-		Title:    "Task 1",
-	}
-
-	if task.ParentID != nil {
-		t.Errorf("expected ParentID nil, got '%v'", task.ParentID)
 	}
 }
 
@@ -311,7 +284,7 @@ func TestTaskPopResponseJSON(t *testing.T) {
 	now := time.Now()
 	task := &model.Task{
 		ID:        "1",
-		PhaseID:   "1",
+		FeatureID: 1,
 		Status:    "doing",
 		Title:     "Test Task",
 		CreatedAt: now,
@@ -344,23 +317,5 @@ func TestTaskPopResponseJSON(t *testing.T) {
 	}
 	if result.Task.Title != "Test Task" {
 		t.Errorf("expected Task.Title 'Test Task', got '%s'", result.Task.Title)
-	}
-}
-
-func TestEmptyReferences(t *testing.T) {
-	t.Helper()
-	task := model.Task{
-		ID:         "1",
-		PhaseID:    "1",
-		Status:     "pending",
-		Title:      "Task",
-		References: []string{},
-	}
-
-	if task.References == nil {
-		t.Error("expected References to be empty slice, not nil")
-	}
-	if len(task.References) != 0 {
-		t.Errorf("expected 0 references, got %d", len(task.References))
 	}
 }

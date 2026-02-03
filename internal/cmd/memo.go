@@ -226,13 +226,17 @@ func runMemoDel(cmd *cobra.Command, args []string) error {
 }
 
 // parseKey parses a memo key in the format "1:42:notes" -> (scope, scopeID, key)
+// Key formats:
+//   - "key" -> project scope
+//   - "1:key" -> feature scope (feature_id=1)
+//   - "1:42:key" -> task scope (feature_id=1, task_id=42)
 func parseKey(input string) (scope, scopeID, key string, err error) {
 	parts := strings.Split(input, ":")
 	switch len(parts) {
 	case 1:
 		return "project", "", parts[0], nil
 	case 2:
-		return "phase", parts[0], parts[1], nil
+		return "feature", parts[0], parts[1], nil
 	case 3:
 		return "task", parts[0] + ":" + parts[1], parts[2], nil
 	default:
@@ -245,7 +249,7 @@ func parseScopeFilter(input string) (scope, scopeID string) {
 	parts := strings.Split(input, ":")
 	switch len(parts) {
 	case 1:
-		return "phase", parts[0]
+		return "feature", parts[0]
 	case 2:
 		return "task", parts[0] + ":" + parts[1]
 	default:

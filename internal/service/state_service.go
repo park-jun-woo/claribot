@@ -11,7 +11,7 @@ import (
 // State key constants
 const (
 	StateCurrentProject = "current_project"
-	StateCurrentPhase   = "current_phase"
+	StateCurrentFeature = "current_feature"
 	StateCurrentTask    = "current_task"
 	StateNextTask       = "next_task"
 )
@@ -76,14 +76,14 @@ func DeleteState(database *db.DB, key string) error {
 }
 
 // UpdateCurrentState updates the current state when a task is executed
-func UpdateCurrentState(database *db.DB, projectID, phaseID string, taskID, nextTaskID int64) error {
+func UpdateCurrentState(database *db.DB, projectID string, featureID, taskID, nextTaskID int64) error {
 	if projectID != "" {
 		if err := SetState(database, StateCurrentProject, projectID); err != nil {
 			return err
 		}
 	}
-	if phaseID != "" {
-		if err := SetState(database, StateCurrentPhase, phaseID); err != nil {
+	if featureID > 0 {
+		if err := SetState(database, StateCurrentFeature, strconv.FormatInt(featureID, 10)); err != nil {
 			return err
 		}
 	}
@@ -108,7 +108,7 @@ func InitState(database *db.DB, projectID string) error {
 	if err := SetState(database, StateCurrentProject, projectID); err != nil {
 		return err
 	}
-	if err := SetState(database, StateCurrentPhase, ""); err != nil {
+	if err := SetState(database, StateCurrentFeature, ""); err != nil {
 		return err
 	}
 	if err := SetState(database, StateCurrentTask, ""); err != nil {

@@ -12,8 +12,8 @@ import (
 
 // MemoSetInput represents input for setting a memo
 type MemoSetInput struct {
-	Scope    string   // "project", "phase", "task"
-	ScopeID  string   // project_id, phase_id, task_id
+	Scope    string   // "project", "feature", "task"
+	ScopeID  string   // project_id, feature_id, task_id
 	Key      string
 	Value    string
 	Priority int // 1, 2, 3
@@ -101,7 +101,7 @@ type MemoSummary struct {
 // MemoListResult represents the result of ListMemos
 type MemoListResult struct {
 	Project map[string][]MemoSummary `json:"project"`
-	Phase   map[string][]MemoSummary `json:"phase"`
+	Feature map[string][]MemoSummary `json:"feature"`
 	Task    map[string][]MemoSummary `json:"task"`
 	Total   int                      `json:"total"`
 }
@@ -118,7 +118,7 @@ func ListMemos(database *db.DB) (*MemoListResult, error) {
 
 	result := &MemoListResult{
 		Project: make(map[string][]MemoSummary),
-		Phase:   make(map[string][]MemoSummary),
+		Feature: make(map[string][]MemoSummary),
 		Task:    make(map[string][]MemoSummary),
 	}
 
@@ -146,8 +146,8 @@ func ListMemos(database *db.DB) (*MemoListResult, error) {
 		switch scope {
 		case "project":
 			result.Project[scopeID] = append(result.Project[scopeID], ms)
-		case "phase":
-			result.Phase[scopeID] = append(result.Phase[scopeID], ms)
+		case "feature":
+			result.Feature[scopeID] = append(result.Feature[scopeID], ms)
 		case "task":
 			result.Task[scopeID] = append(result.Task[scopeID], ms)
 		}
@@ -211,7 +211,7 @@ func GetHighPriorityMemos(database *db.DB) ([]model.Memo, error) {
 	return memos, nil
 }
 
-// ParseMemoKey parses a memo key in the format "PH001:T042:key"
+// ParseMemoKey parses a memo key in the format "feature_id:task_id:key"
 func ParseMemoKey(input string) (scope, scopeID, key string, err error) {
 	parts := strings.Split(input, ":")
 
@@ -220,10 +220,10 @@ func ParseMemoKey(input string) (scope, scopeID, key string, err error) {
 		// project level: "key"
 		return "project", "", parts[0], nil
 	case 2:
-		// phase level: "PH001:key" or "1:key"
-		return "phase", parts[0], parts[1], nil
+		// feature level: "1:key"
+		return "feature", parts[0], parts[1], nil
 	case 3:
-		// task level: "PH001:T042:key" or "1:2:key"
+		// task level: "1:2:key" (feature_id:task_id:key)
 		return "task", parts[0] + ":" + parts[1], parts[2], nil
 	default:
 		return "", "", "", fmt.Errorf("invalid memo key format: %s", input)

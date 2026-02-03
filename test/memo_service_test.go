@@ -103,19 +103,19 @@ func TestGetMemo(t *testing.T) {
 	defer cleanup()
 
 	service.SetMemo(database, service.MemoSetInput{
-		Scope:   "phase",
+		Scope:   "feature",
 		ScopeID: "1",
 		Key:     "decisions",
-		Value:   "Phase decisions",
+		Value:   "Feature decisions",
 	})
 
-	memo, err := service.GetMemo(database, "phase", "1", "decisions")
+	memo, err := service.GetMemo(database, "feature", "1", "decisions")
 	if err != nil {
 		t.Fatalf("failed to get memo: %v", err)
 	}
 
-	if memo.Scope != "phase" {
-		t.Errorf("expected Scope 'phase', got '%s'", memo.Scope)
+	if memo.Scope != "feature" {
+		t.Errorf("expected Scope 'feature', got '%s'", memo.Scope)
 	}
 	if memo.ScopeID != "1" {
 		t.Errorf("expected ScopeID '1', got '%s'", memo.ScopeID)
@@ -177,10 +177,10 @@ func TestListMemos(t *testing.T) {
 		Value:   "Project notes",
 	})
 	service.SetMemo(database, service.MemoSetInput{
-		Scope:   "phase",
+		Scope:   "feature",
 		ScopeID: "1",
 		Key:     "notes2",
-		Value:   "Phase notes",
+		Value:   "Feature notes",
 	})
 	service.SetMemo(database, service.MemoSetInput{
 		Scope:   "task",
@@ -200,8 +200,8 @@ func TestListMemos(t *testing.T) {
 	if len(result.Project) == 0 {
 		t.Error("expected project memos")
 	}
-	if len(result.Phase) == 0 {
-		t.Error("expected phase memos")
+	if len(result.Feature) == 0 {
+		t.Error("expected feature memos")
 	}
 	if len(result.Task) == 0 {
 		t.Error("expected task memos")
@@ -239,25 +239,25 @@ func TestListMemosByScope(t *testing.T) {
 	defer cleanup()
 
 	service.SetMemo(database, service.MemoSetInput{
-		Scope:   "phase",
+		Scope:   "feature",
 		ScopeID: "1",
 		Key:     "notes1",
 		Value:   "Notes 1",
 	})
 	service.SetMemo(database, service.MemoSetInput{
-		Scope:   "phase",
+		Scope:   "feature",
 		ScopeID: "1",
 		Key:     "notes2",
 		Value:   "Notes 2",
 	})
 	service.SetMemo(database, service.MemoSetInput{
-		Scope:   "phase",
+		Scope:   "feature",
 		ScopeID: "2",
 		Key:     "notes3",
 		Value:   "Notes 3",
 	})
 
-	memos, err := service.ListMemosByScope(database, "phase", "1")
+	memos, err := service.ListMemosByScope(database, "feature", "1")
 	if err != nil {
 		t.Fatalf("failed to list memos by scope: %v", err)
 	}
@@ -378,14 +378,14 @@ func TestParseMemoKeyProjectLevel(t *testing.T) {
 	}
 }
 
-func TestParseMemoKeyPhaseLevel(t *testing.T) {
+func TestParseMemoKeyFeatureLevel(t *testing.T) {
 	scope, scopeID, key, err := service.ParseMemoKey("PH001:api_decisions")
 	if err != nil {
 		t.Fatalf("failed to parse memo key: %v", err)
 	}
 
-	if scope != "phase" {
-		t.Errorf("expected scope 'phase', got '%s'", scope)
+	if scope != "feature" {
+		t.Errorf("expected scope 'feature', got '%s'", scope)
 	}
 	if scopeID != "PH001" {
 		t.Errorf("expected scopeID 'PH001', got '%s'", scopeID)
@@ -395,14 +395,14 @@ func TestParseMemoKeyPhaseLevel(t *testing.T) {
 	}
 }
 
-func TestParseMemoKeyPhaseLevelNumeric(t *testing.T) {
+func TestParseMemoKeyFeatureLevelNumeric(t *testing.T) {
 	scope, scopeID, key, err := service.ParseMemoKey("1:notes")
 	if err != nil {
 		t.Fatalf("failed to parse memo key: %v", err)
 	}
 
-	if scope != "phase" {
-		t.Errorf("expected scope 'phase', got '%s'", scope)
+	if scope != "feature" {
+		t.Errorf("expected scope 'feature', got '%s'", scope)
 	}
 	if scopeID != "1" {
 		t.Errorf("expected scopeID '1', got '%s'", scopeID)
@@ -462,7 +462,7 @@ func TestParseMemoKeyTable(t *testing.T) {
 		wantErr bool
 	}{
 		{"simple_key", "project", "", "simple_key", false},
-		{"PH1:phase_key", "phase", "PH1", "phase_key", false},
+		{"PH1:feature_key", "feature", "PH1", "feature_key", false},
 		{"1:2:task_key", "task", "1:2", "task_key", false},
 		{"a:b:c:d", "", "", "", true},
 		{"a:b:c:d:e", "", "", "", true},

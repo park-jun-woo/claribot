@@ -80,8 +80,8 @@ func buildDebugInitialPrompt(database *db.DB, task *model.Task) string {
 	var skeletonCode string
 
 	// Get FDL if feature is associated
-	if task.FeatureID != nil {
-		feature, err := GetFeature(database, *task.FeatureID)
+	if task.FeatureID > 0 {
+		feature, err := GetFeature(database, task.FeatureID)
 		if err == nil && feature != nil {
 			fdlSpec = feature.FDL
 		}

@@ -11,18 +11,12 @@ func TestCreateTask(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	input := service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Test Task",
-		Content: "Task content",
-		Level:   "leaf",
-		Skill:   "coding",
+		FeatureID: featureID,
+		Title:     "Test Task",
+		Content:   "Task content",
 	}
 
 	taskID, err := service.CreateTask(database, input)
@@ -35,92 +29,17 @@ func TestCreateTask(t *testing.T) {
 	}
 }
 
-func TestCreateTaskWithParentID(t *testing.T) {
-	database, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-
-	// Create parent task
-	parentID, _ := service.CreateTask(database, service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Parent Task",
-		Level:   "node",
-	})
-
-	// Create child task
-	input := service.TaskCreateInput{
-		PhaseID:  phaseID,
-		ParentID: &parentID,
-		Title:    "Child Task",
-		Level:    "leaf",
-	}
-
-	childID, err := service.CreateTask(database, input)
-	if err != nil {
-		t.Fatalf("failed to create child task: %v", err)
-	}
-
-	// Verify parent ID is set
-	task, _ := service.GetTask(database, childID)
-	if task.ParentID == nil {
-		t.Error("expected ParentID to be set")
-	}
-}
-
-func TestCreateTaskWithReferences(t *testing.T) {
-	database, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
-
-	input := service.TaskCreateInput{
-		PhaseID:    phaseID,
-		Title:      "Task with refs",
-		References: []string{"file1.go", "file2.go", "docs/readme.md"},
-	}
-
-	taskID, err := service.CreateTask(database, input)
-	if err != nil {
-		t.Fatalf("failed to create task: %v", err)
-	}
-
-	task, _ := service.GetTask(database, taskID)
-	if len(task.References) != 3 {
-		t.Errorf("expected 3 references, got %d", len(task.References))
-	}
-	if task.References[0] != "file1.go" {
-		t.Errorf("expected first reference 'file1.go', got '%s'", task.References[0])
-	}
-}
-
 func TestGetTask(t *testing.T) {
 	database, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	input := service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Test Task",
-		Content: "Task content",
-		Level:   "leaf",
-		Skill:   "coding",
+		FeatureID: featureID,
+		Title:     "Test Task",
+		Content:   "Task content",
 	}
 	taskID, _ := service.CreateTask(database, input)
 
@@ -134,9 +53,6 @@ func TestGetTask(t *testing.T) {
 	}
 	if task.Content != "Task content" {
 		t.Errorf("expected Content 'Task content', got '%s'", task.Content)
-	}
-	if task.Level != "leaf" {
-		t.Errorf("expected Level 'leaf', got '%s'", task.Level)
 	}
 	if task.Status != "pending" {
 		t.Errorf("expected Status 'pending', got '%s'", task.Status)
@@ -153,23 +69,19 @@ func TestGetTaskNotFound(t *testing.T) {
 	}
 }
 
-func TestListTasks(t *testing.T) {
+func TestListTasksByFeature(t *testing.T) {
 	database, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	// Create multiple tasks
-	service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
-	service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 3"})
+	service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
+	service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 3"})
 
-	tasks, err := service.ListTasks(database, phaseID)
+	tasks, err := service.ListTasksByFeature(database, featureID)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}
@@ -184,15 +96,11 @@ func TestStartTask(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	taskID, _ := service.CreateTask(database, service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Task 1",
+		FeatureID: featureID,
+		Title:     "Task 1",
 	})
 
 	err := service.StartTask(database, taskID)
@@ -214,15 +122,11 @@ func TestStartTaskAlreadyStarted(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	taskID, _ := service.CreateTask(database, service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Task 1",
+		FeatureID: featureID,
+		Title:     "Task 1",
 	})
 
 	service.StartTask(database, taskID)
@@ -239,15 +143,11 @@ func TestCompleteTask(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	taskID, _ := service.CreateTask(database, service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Task 1",
+		FeatureID: featureID,
+		Title:     "Task 1",
 	})
 
 	service.StartTask(database, taskID)
@@ -274,15 +174,11 @@ func TestCompleteTaskNotStarted(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	taskID, _ := service.CreateTask(database, service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Task 1",
+		FeatureID: featureID,
+		Title:     "Task 1",
 	})
 
 	// Try to complete without starting
@@ -297,15 +193,11 @@ func TestFailTask(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	taskID, _ := service.CreateTask(database, service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Task 1",
+		FeatureID: featureID,
+		Title:     "Task 1",
 	})
 
 	service.StartTask(database, taskID)
@@ -332,15 +224,11 @@ func TestFailTaskNotStarted(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	taskID, _ := service.CreateTask(database, service.TaskCreateInput{
-		PhaseID: phaseID,
-		Title:   "Task 1",
+		FeatureID: featureID,
+		Title:     "Task 1",
 	})
 
 	// Try to fail without starting
@@ -355,11 +243,7 @@ func TestPopTask(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	// Set context, tech, design for manifest
 	service.SetContext(database, map[string]interface{}{"project_name": "Test"})
@@ -367,8 +251,8 @@ func TestPopTask(t *testing.T) {
 	service.SetDesign(database, map[string]interface{}{"architecture": "monolith"})
 
 	// Create tasks
-	service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
+	service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
 
 	result, err := service.PopTask(database)
 	if err != nil {
@@ -386,9 +270,6 @@ func TestPopTask(t *testing.T) {
 	}
 
 	// Check manifest
-	if result.Manifest == nil {
-		t.Fatal("expected manifest, got nil")
-	}
 	if result.Manifest.Context["project_name"] != "Test" {
 		t.Errorf("expected manifest.context.project_name 'Test', got '%v'", result.Manifest.Context["project_name"])
 	}
@@ -411,31 +292,27 @@ func TestPopTaskNoPendingTasks(t *testing.T) {
 	}
 }
 
-func TestPopTaskStartsPhase(t *testing.T) {
+func TestPopTaskStartsFeature(t *testing.T) {
 	database, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
-	service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
+	service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
 
-	// Phase should be pending initially
-	phase, _ := service.GetPhase(database, phaseID)
-	if phase.Status != "pending" {
-		t.Errorf("expected initial phase status 'pending', got '%s'", phase.Status)
+	// Feature should be pending initially
+	feature, _ := service.GetFeature(database, featureID)
+	if feature.Status != "pending" {
+		t.Errorf("expected initial feature status 'pending', got '%s'", feature.Status)
 	}
 
-	// Pop task should start the phase
+	// Pop task should start the feature
 	service.PopTask(database)
 
-	phase, _ = service.GetPhase(database, phaseID)
-	if phase.Status != "active" {
-		t.Errorf("expected phase status 'active' after pop, got '%s'", phase.Status)
+	feature, _ = service.GetFeature(database, featureID)
+	if feature.Status != "active" {
+		t.Errorf("expected feature status 'active' after pop, got '%s'", feature.Status)
 	}
 }
 
@@ -444,17 +321,13 @@ func TestGetTaskStatus(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	// Create tasks with different statuses
-	task1, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
-	task2, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 2"})
-	task3, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 3"})
-	task4, _ := service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 4"})
+	task1, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
+	task2, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 2"})
+	task3, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 3"})
+	task4, _ := service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 4"})
 
 	// pending: Task 1
 	// doing: Task 2
@@ -519,11 +392,7 @@ func TestPopTaskWithHighPriorityMemos(t *testing.T) {
 	defer cleanup()
 
 	service.CreateProject(database, "test-project", "Test Project", "Description")
-	phaseID, _ := service.CreatePhase(database, service.PhaseCreateInput{
-		ProjectID: "test-project",
-		Name:      "Phase 1",
-		OrderNum:  1,
-	})
+	featureID, _ := service.CreateFeature(database, "test-project", "Feature 1", "Description")
 
 	// Create memo with priority 1
 	service.SetMemo(database, service.MemoSetInput{
@@ -543,7 +412,7 @@ func TestPopTaskWithHighPriorityMemos(t *testing.T) {
 		Priority: 2,
 	})
 
-	service.CreateTask(database, service.TaskCreateInput{PhaseID: phaseID, Title: "Task 1"})
+	service.CreateTask(database, service.TaskCreateInput{FeatureID: featureID, Title: "Task 1"})
 
 	result, err := service.PopTask(database)
 	if err != nil {

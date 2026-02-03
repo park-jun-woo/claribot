@@ -99,8 +99,7 @@ type ExecutionPlan struct {
 type PlannedTask struct {
 	ID        string   `json:"id"`
 	Title     string   `json:"title"`
-	Feature   string   `json:"feature,omitempty"`
-	Phase     string   `json:"phase"`
+	Feature   string   `json:"feature"`
 	DependsOn []string `json:"depends_on,omitempty"`
 	Order     int      `json:"order"`
 }
@@ -117,26 +116,26 @@ func GenerateExecutionPlan(database *db.DB, featureID *int64) (*ExecutionPlan, e
 		return nil, err
 	}
 
-	// Get all phases
-	phases, err := ListPhases(database, project.ID)
+	// Get all features
+	features, err := ListFeatures(database, project.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	order := 0
-	for _, phase := range phases {
-		// Get tasks for this phase, sorted by dependencies
-		tasks, err := TopologicalSortTasks(database, phase.ID)
+	for _, feature := range features {
+		// Filter by feature if specified
+		if featureID != nil && feature.ID != *featureID {
+			continue
+		}
+
+		// Get tasks for this feature
+		tasks, err := ListTasksByFeature(database, feature.ID)
 		if err != nil {
 			continue
 		}
 
 		for _, task := range tasks {
-			// Filter by feature if specified
-			if featureID != nil && (task.FeatureID == nil || *task.FeatureID != *featureID) {
-				continue
-			}
-
 			// Skip non-pending tasks
 			if task.Status != "pending" {
 				continue
@@ -144,18 +143,10 @@ func GenerateExecutionPlan(database *db.DB, featureID *int64) (*ExecutionPlan, e
 
 			order++
 			planned := PlannedTask{
-				ID:    task.ID,
-				Title: task.Title,
-				Phase: phase.Name,
-				Order: order,
-			}
-
-			// Get feature name if associated
-			if task.FeatureID != nil {
-				feature, err := GetFeature(database, *task.FeatureID)
-				if err == nil {
-					planned.Feature = feature.Name
-				}
+				ID:      task.ID,
+				Title:   task.Title,
+				Feature: feature.Name,
+				Order:   order,
 			}
 
 			// Get dependencies
@@ -274,13 +265,11 @@ func ExecuteAllTasks(database *db.DB, options ExecutionOptions) error {
 		task := response.Task
 
 		// Filter by feature if specified
-		if options.FeatureID != nil {
-			if task.FeatureID == nil || *task.FeatureID != *options.FeatureID {
-				// Reset task and continue
-				taskID, _ := strconv.ParseInt(task.ID, 10, 64)
-				ResetTaskToPending(database, taskID)
-				continue
-			}
+		if options.FeatureID != nil && task.FeatureID != *options.FeatureID {
+			// Reset task and continue
+			taskID, _ := strconv.ParseInt(task.ID, 10, 64)
+			ResetTaskToPending(database, taskID)
+			continue
 		}
 
 		// Update current task

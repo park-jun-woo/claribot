@@ -53,18 +53,6 @@ CREATE TABLE IF NOT EXISTS projects (
     created_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS phases (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    order_num INTEGER,
-    status TEXT DEFAULT 'pending'
-        CHECK(status IN ('pending', 'active', 'done')),
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (project_id) REFERENCES projects(id)
-);
-
 CREATE TABLE IF NOT EXISTS features (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id TEXT NOT NULL,
@@ -103,29 +91,21 @@ CREATE TABLE IF NOT EXISTS skeletons (
 
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    phase_id INTEGER NOT NULL,
-    parent_id INTEGER DEFAULT NULL,
+    feature_id INTEGER NOT NULL,
+    skeleton_id INTEGER,
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK(status IN ('pending', 'doing', 'done', 'failed')),
     title TEXT NOT NULL,
-    level TEXT DEFAULT ''
-        CHECK(level IN ('', 'node', 'leaf')),
-    skill TEXT DEFAULT '',
-    "references" TEXT DEFAULT '[]',
     content TEXT DEFAULT '',
-    result TEXT DEFAULT '',
-    error TEXT DEFAULT '',
-    feature_id INTEGER DEFAULT NULL,
-    skeleton_id INTEGER DEFAULT NULL,
     target_file TEXT DEFAULT '',
     target_line INTEGER,
     target_function TEXT DEFAULT '',
+    result TEXT DEFAULT '',
+    error TEXT DEFAULT '',
     created_at TEXT NOT NULL,
     started_at TEXT,
     completed_at TEXT,
     failed_at TEXT,
-    FOREIGN KEY (phase_id) REFERENCES phases(id),
-    FOREIGN KEY (parent_id) REFERENCES tasks(id),
     FOREIGN KEY (feature_id) REFERENCES features(id),
     FOREIGN KEY (skeleton_id) REFERENCES skeletons(id)
 );
@@ -165,6 +145,7 @@ CREATE TABLE IF NOT EXISTS state (
     value TEXT NOT NULL
 );
 
+-- memos: scope is 'project', 'feature', or 'task'
 CREATE TABLE IF NOT EXISTS memos (
     scope TEXT NOT NULL,
     scope_id TEXT NOT NULL,
