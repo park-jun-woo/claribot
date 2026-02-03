@@ -1,6 +1,6 @@
 # TTY Handover: Claude CLI Options
 
-> **버전**: v0.0.1
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
 
 ---
 
@@ -129,4 +129,4 @@ CLAUDE_CODE_CONFIG_DIR=...    # 설정 디렉토리
 
 ---
 
-*TTY Handover Specification v0.0.1 - 2026-02-03*
+*TTY Handover Specification v0.0.4*

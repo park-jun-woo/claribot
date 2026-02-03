@@ -1,6 +1,8 @@
 # VSCode Extension Project 탭
 
-> **버전**: v0.0.4
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## Project 탭 레이아웃
 
@@ -188,4 +190,4 @@ ProjectPanel/
 
 ---
 
-*Claritask VSCode Extension Spec v0.0.4 - 2026-02-03*
+*Claritask VSCode Extension Spec v0.0.4*

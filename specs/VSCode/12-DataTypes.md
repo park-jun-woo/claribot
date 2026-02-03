@@ -1,6 +1,8 @@
 # VSCode Extension 데이터 타입
 
-> **버전**: v0.0.4
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## ProjectData
 
@@ -86,4 +88,4 @@ interface Edge {
 
 ---
 
-*Claritask VSCode Extension Spec v0.0.4 - 2026-02-03*
+*Claritask VSCode Extension Spec v0.0.4*

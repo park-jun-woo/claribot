@@ -1,6 +1,8 @@
 # clari memo - 메모 관리
 
-> **버전**: v0.0.3
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## clari memo set
 
@@ -122,4 +124,4 @@ clari memo del <key>
 
 ---
 
-*Claritask Commands Reference v0.0.3 - 2026-02-03*
+*Claritask Commands Reference v0.0.4*

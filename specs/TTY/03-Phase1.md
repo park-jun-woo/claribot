@@ -1,6 +1,6 @@
 # TTY Handover: Phase 1 - 요구사항 수립
 
-> **버전**: v0.0.1
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
 
 ---
 
@@ -119,4 +119,4 @@ Phase 1에서 Phase 2로의 전환:
 
 ---
 
-*TTY Handover Specification v0.0.1 - 2026-02-03*
+*TTY Handover Specification v0.0.4*

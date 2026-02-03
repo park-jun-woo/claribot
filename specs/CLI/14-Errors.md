@@ -1,6 +1,8 @@
 # 에러 처리 및 미구현 명령어
 
-> **버전**: v0.0.3
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## 에러 처리
 
@@ -36,4 +38,4 @@ clari edge infer --feature <id> --auto-add
 
 ---
 
-*Claritask Commands Reference v0.0.3 - 2026-02-03*
+*Claritask Commands Reference v0.0.4*

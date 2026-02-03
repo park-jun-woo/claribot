@@ -1,6 +1,8 @@
 # ClariSpec: 작성 예시
 
-> **버전**: v0.0.1
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## 예시: 댓글 작성 (Post Comment)
 
@@ -148,4 +150,4 @@ ui:
 
 ---
 
-*ClariSpec FDL Specification v0.0.1 - 2026-02-03*
+*ClariSpec FDL Specification v0.0.4*

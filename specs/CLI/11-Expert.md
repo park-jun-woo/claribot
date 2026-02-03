@@ -1,6 +1,8 @@
 # clari expert - Expert 관리
 
-> **버전**: v0.0.3
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## 개요
 
@@ -278,4 +280,4 @@ clari expert unassign <expert-id> --project <project-id>
 
 ---
 
-*Claritask Commands Reference v0.0.3 - 2026-02-03*
+*Claritask Commands Reference v0.0.4*

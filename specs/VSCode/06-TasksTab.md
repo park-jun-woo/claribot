@@ -1,6 +1,8 @@
 # VSCode Extension Tasks 탭
 
-> **버전**: v0.0.4
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## Tasks 탭 레이아웃
 
@@ -55,4 +57,4 @@
 
 ---
 
-*Claritask VSCode Extension Spec v0.0.4 - 2026-02-03*
+*Claritask VSCode Extension Spec v0.0.4*

@@ -1,6 +1,8 @@
 # VSCode Extension 로드맵
 
-> **버전**: v0.0.4
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## Phase 1: MVP
 - [x] Custom Editor Provider 구현
@@ -61,4 +63,4 @@
 
 ---
 
-*Claritask VSCode Extension Spec v0.0.4 - 2026-02-03*
+*Claritask VSCode Extension Spec v0.0.4*

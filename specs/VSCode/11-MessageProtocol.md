@@ -1,6 +1,8 @@
 # VSCode Extension 메시지 프로토콜
 
-> **버전**: v0.0.4
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## Extension → Webview
 
@@ -44,4 +46,4 @@
 
 ---
 
-*Claritask VSCode Extension Spec v0.0.4 - 2026-02-03*
+*Claritask VSCode Extension Spec v0.0.4*

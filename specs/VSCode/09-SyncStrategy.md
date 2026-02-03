@@ -1,6 +1,8 @@
 # VSCode Extension SQLite 동기화 전략
 
-> **버전**: v0.0.4
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## WAL 모드 활성화
 
@@ -62,4 +64,4 @@ WHERE id = ? AND version = ?;
 
 ---
 
-*Claritask VSCode Extension Spec v0.0.4 - 2026-02-03*
+*Claritask VSCode Extension Spec v0.0.4*

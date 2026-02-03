@@ -1,6 +1,8 @@
 # ClariSpec: 작성 가이드라인
 
-> **버전**: v0.0.1
+> **현재 버전**: v0.0.4 ([변경이력](../HISTORY.md))
+
+---
 
 ## 기본 규칙
 
@@ -149,4 +151,4 @@ FDL 작성 후 다음 항목을 확인하십시오:
 
 ---
 
-*ClariSpec FDL Specification v0.0.1 - 2026-02-03*
+*ClariSpec FDL Specification v0.0.4*

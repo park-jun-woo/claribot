@@ -9,15 +9,11 @@
 | 문서 | 변경 내용 |
 |------|----------|
 | Claritask.md | TTY Handover 아키텍처 반영, 구조 간소화 |
-| CLI/01-Overview.md | 버전 통합, 상호 참조 추가 |
-| CLI/02-Init.md | TTY Handover 연동 명세 추가 |
-| CLI/03-Project.md | TTY Handover 기반 자동 실행 명세 추가 |
-| FDL/01-Overview.md | 버전 통합, 상호 참조 추가 |
-| FDL/02-Schema.md | 버전 통합 |
-| FDL/02-A~D-*Layer.md | 파일명 변경 (02a→02-A 형식) |
-| TTY/01-Overview.md | 버전 통합, 상호 참조 추가 |
-| VSCode/01-Overview.md | Experts 탭 추가, FileSystemWatcher 동기화, 버전 통합 |
-| DB/* | DB 스키마 문서 신규 생성 (01-Overview, 02-A-Core, 02-B-Settings, 02-C-Content, 03-Migration) |
+| CLI/* (14개) | 버전 v0.0.4 통일, 헤더/푸터 형식 통일, 상호 참조 추가 |
+| FDL/* (8개) | 버전 v0.0.4 통일, 헤더/푸터 형식 통일, 파일명 변경 (02a→02-A) |
+| TTY/* (7개) | 버전 v0.0.4 통일, 헤더/푸터 형식 통일, 상호 참조 추가 |
+| VSCode/* (15개) | 버전 v0.0.4 통일, 헤더/푸터 형식 통일 |
+| DB/* (5개) | DB 스키마 문서 신규 생성 |
 | HISTORY.md | 변경이력 통합 문서 신규 생성 |
 
 ---
