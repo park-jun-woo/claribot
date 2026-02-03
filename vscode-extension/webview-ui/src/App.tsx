@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useStore } from './store';
 import { FeatureList } from './components/FeatureList';
 import { TaskPanel } from './components/TaskPanel';
@@ -6,7 +6,7 @@ import { StatusBar } from './components/StatusBar';
 import { useSync } from './hooks/useSync';
 
 function App() {
-  const { project, selectedFeatureId, setSelectedFeature } = useStore();
+  const { project, selectedFeatureId } = useStore();
   const { isConnected, lastSync, error } = useSync();
   const [view, setView] = useState<'features' | 'tasks'>('features');
 
