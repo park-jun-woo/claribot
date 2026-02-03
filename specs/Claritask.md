@@ -542,22 +542,20 @@ CREATE TABLE memos (
 
 ### Project 관리
 ```bash
-clari project '<json>' # 프로젝트 정보 입력. Claritask는 클로드 코드 내에서 작동하므로 프로젝트는 싱글톤.
+clari project set '<json>' # 프로젝트 설정 입력 (context, tech, design)
 ```
 
 **JSON 포맷**:
 ```json
 {
-  "name": "Blog Platform",
-  "description": "Developer blogging platform",
-  "context":{
+  "context": {
     "project_name": "Blog Platform",
     "description": "Developer blogging platform with markdown",
     "target_users": "Tech bloggers and readers",
     "deadline": "2026-03-01",
     "constraints": "Must support 10k concurrent users"
   },
-  "tech":{
+  "tech": {
     "backend": "FastAPI",
     "frontend": "React 18",
     "database": "PostgreSQL",
@@ -565,7 +563,7 @@ clari project '<json>' # 프로젝트 정보 입력. Claritask는 클로드 코�
     "auth_service": "Auth0",
     "deployment": "Docker + AWS ECS"
   },
-  "design":{
+  "design": {
     "architecture": "Microservices",
     "auth_method": "JWT with 1h expiry",
     "api_style": "RESTful",
@@ -599,11 +597,11 @@ clari project status              # 실행 상태 조회
 
 ### Feature 관리
 ```bash
-clari feature list             # Feature 목록 조회
-clari feature add '<json>'     # Feature 등록
-clari feature <id> spec        # Feature spec 대화 시작
-clari feature <id> tasks       # Feature 하위 Task 생성
-clari feature <id> start       # Feature 하위 Task 실행 시작
+clari feature list                    # Feature 목록 조회
+clari feature add '<json>'            # Feature 등록
+clari feature get <id>                # Feature 상세 조회
+clari feature spec <id> '<spec_text>' # Feature 스펙 설정
+clari feature start <id>              # Feature 실행 시작
 ```
 
 **JSON 포맷**:
@@ -617,7 +615,7 @@ clari feature <id> start       # Feature 하위 Task 실행 시작
 ### Task 관리
 ```bash
 clari task list                   # Task 목록 조회
-clari task add '<json>'           # Task 추가
+clari task push '<json>'          # Task 추가
 clari task pop                    # 다음 실행 가능 Task (의존성 해결된 것)
 clari task start <task_id>        # pending → doing
 clari task complete <task_id> '<json>'  # doing → done
@@ -660,32 +658,26 @@ clari edge infer --project                         # Feature 간 Edge LLM 추론
 
 ### Memo 관리
 ```bash
-clari memo set '<json>'
-clari memo get [feature]:[task]:<key>
-clari memo list [feature]:[task]
-clari memo del [feature]:[task]:<key>
+clari memo set <key> '<json>'
+clari memo get <key>
+clari memo list [scope]
+clari memo del <key>
 ```
 
-**영역 지정**:
-```bash
-# Project 전역
-clari memo get jwt_config
-
-# Feature 귀속
-clari memo get 1:api_decisions
-
-# Task 귀속
-clari memo get 1:42:implementation_notes
-```
+**Key 포맷**:
+| 포맷 | Scope | 예시 |
+|------|-------|------|
+| `key` | project | `jwt_security` |
+| `feature_id:key` | feature | `1:api_decisions` |
+| `feature_id:task_id:key` | task | `1:42:implementation_notes` |
 
 **JSON 포맷**:
 ```json
 {
-  "feature": 1,
-  "task": 42,
-  "key": "jwt_config",
   "value": "Use httpOnly cookies for refresh tokens",
-  "priority": 1
+  "priority": 1,
+  "summary": "JWT 보안 정책",
+  "tags": ["security", "jwt"]
 }
 ```
 

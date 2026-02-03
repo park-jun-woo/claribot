@@ -16,8 +16,6 @@ clari
 ├── init                    # 프로젝트 초기화
 ├── project                 # 프로젝트 관리
 │   ├── set / get / plan / start / stop / status
-├── phase                   # 단계 관리
-│   ├── create / list / plan / start
 ├── task                    # 작업 관리
 │   ├── push / pop / start / complete / fail
 │   ├── status / get / list
@@ -49,7 +47,6 @@ clari
 |----------|----------|------|
 | 초기화 | 1 | 구현 완료 |
 | Project | 6 | 구현 완료 |
-| Phase | 4 | 구현 완료 |
 | Task | 8 | 구현 완료 |
 | Feature | 5 | 구현 완료 |
 | Edge | 4 | 구현 완료 |
@@ -58,7 +55,7 @@ clari
 | Memo | 4 | 구현 완료 |
 | Context/Tech/Design | 6 | 구현 완료 |
 | Required | 1 | 구현 완료 |
-| **총계** | **48** | - |
+| **총계** | **44** | - |
 
 ---
 
@@ -122,7 +119,7 @@ clari init blog-api "Developer blogging platform"
 
 ### clari project set
 
-프로젝트 정보 일괄 설정 (context, tech, design 포함)
+프로젝트 설정 일괄 입력 (context, tech, design)
 
 ```bash
 clari project set '<json>'
@@ -131,11 +128,11 @@ clari project set '<json>'
 **JSON 포맷**:
 ```json
 {
-  "name": "Blog Platform",
-  "description": "Developer blogging platform",
   "context": {
     "project_name": "Blog Platform",
-    "description": "Developer blogging with markdown"
+    "description": "Developer blogging with markdown",
+    "target_users": "Tech bloggers",
+    "deadline": "2026-03-01"
   },
   "tech": {
     "backend": "FastAPI",
@@ -154,7 +151,7 @@ clari project set '<json>'
 ```json
 {
   "success": true,
-  "message": "Project updated successfully"
+  "message": "Project settings updated successfully"
 }
 ```
 
@@ -202,7 +199,7 @@ clari project plan
   "ready": true,
   "project_id": "blog-api",
   "mode": "planning",
-  "message": "Project is ready for planning. Use 'clari phase create' to add phases."
+  "message": "Project is ready for planning. Use 'clari feature add' to add features."
 }
 ```
 
@@ -249,125 +246,6 @@ clari project start
 
 ---
 
-## Phase 관리
-
-### clari phase create
-
-새 Phase 생성
-
-```bash
-clari phase create '<json>'
-```
-
-**JSON 포맷**:
-```json
-{
-  "name": "Database Setup",
-  "description": "스키마 및 마이그레이션 설정",
-  "order_num": 1
-}
-```
-
-**응답**:
-```json
-{
-  "success": true,
-  "phase_id": 1,
-  "name": "Database Setup",
-  "message": "Phase created successfully"
-}
-```
-
----
-
-### clari phase list
-
-Phase 목록 조회
-
-```bash
-clari phase list
-```
-
-**응답**:
-```json
-{
-  "success": true,
-  "phases": [
-    {
-      "id": 1,
-      "name": "Database Setup",
-      "description": "스키마 및 마이그레이션",
-      "order_num": 1,
-      "status": "done",
-      "tasks_total": 4,
-      "tasks_done": 4
-    },
-    {
-      "id": 2,
-      "name": "API Development",
-      "description": "REST API 구현",
-      "order_num": 2,
-      "status": "active",
-      "tasks_total": 8,
-      "tasks_done": 3
-    }
-  ],
-  "total": 2
-}
-```
-
----
-
-### clari phase plan
-
-특정 Phase 플래닝 시작
-
-```bash
-clari phase plan <phase_id>
-```
-
-**응답**:
-```json
-{
-  "success": true,
-  "phase_id": 1,
-  "name": "Database Setup",
-  "status": "pending",
-  "mode": "planning",
-  "message": "Phase 'Database Setup' is ready for planning. Use 'clari task push' to add tasks."
-}
-```
-
----
-
-### clari phase start
-
-특정 Phase 실행 시작
-
-```bash
-clari phase start <phase_id>
-```
-
-**동작**:
-1. Phase 내 Task 확인
-2. pending Task가 있으면 Phase status를 `active`로 변경
-3. 실행 준비 완료
-
-**응답**:
-```json
-{
-  "success": true,
-  "phase_id": 1,
-  "name": "Database Setup",
-  "mode": "execution",
-  "pending_tasks": 4,
-  "total_tasks": 4,
-  "message": "Phase 'Database Setup' started. Use 'clari task pop' to get the next task."
-}
-```
-
----
-
 ## Task 관리
 
 ### clari task push
@@ -381,7 +259,7 @@ clari task push '<json>'
 **JSON 포맷**:
 ```json
 {
-  "phase_id": 1,
+  "feature_id": 1,
   "title": "user_table_sql",
   "content": "CREATE TABLE users (id, email, password_hash, created_at)",
   "level": "leaf",
@@ -390,7 +268,7 @@ clari task push '<json>'
 }
 ```
 
-**필수 필드**: `phase_id`, `title`, `content`
+**필수 필드**: `feature_id`, `title`, `content`
 
 **응답**:
 ```json
@@ -417,7 +295,7 @@ clari task pop
 2. Task의 status를 `doing`으로 변경
 3. `started_at` 기록
 4. Manifest 구성 (context, tech, design, state, memos)
-5. State 업데이트 (current_project, current_phase, current_task, next_task)
+5. State 업데이트 (current_project, current_feature, current_task, next_task)
 
 **응답**:
 ```json
@@ -425,7 +303,7 @@ clari task pop
   "success": true,
   "task": {
     "id": "3",
-    "phase_id": "1",
+    "feature_id": "1",
     "parent_id": null,
     "status": "doing",
     "title": "auth_service",
@@ -455,7 +333,7 @@ clari task pop
     },
     "state": {
       "current_project": "blog-api",
-      "current_phase": "1",
+      "current_feature": "1",
       "current_task": "3",
       "next_task": "4"
     },
@@ -598,7 +476,7 @@ clari task status
   },
   "state": {
     "current_project": "blog-api",
-    "current_phase": "2",
+    "current_feature": "2",
     "current_task": "16",
     "next_task": "17"
   },
@@ -622,7 +500,7 @@ clari task get <task_id>
   "success": true,
   "task": {
     "id": "3",
-    "phase_id": "1",
+    "feature_id": "1",
     "parent_id": null,
     "status": "done",
     "title": "auth_service",
@@ -643,10 +521,10 @@ clari task get <task_id>
 
 ### clari task list
 
-Phase별 Task 목록 조회
+Feature별 Task 목록 조회
 
 ```bash
-clari task list <phase_id>
+clari task list [feature_id]
 ```
 
 **응답**:
@@ -654,9 +532,9 @@ clari task list <phase_id>
 {
   "success": true,
   "tasks": [
-    {"id": "1", "phase_id": "1", "status": "done", "title": "user_table_sql", ...},
-    {"id": "2", "phase_id": "1", "status": "done", "title": "user_model", ...},
-    {"id": "3", "phase_id": "1", "status": "doing", "title": "auth_service", ...}
+    {"id": "1", "feature_id": "1", "status": "done", "title": "user_table_sql", ...},
+    {"id": "2", "feature_id": "1", "status": "done", "title": "user_model", ...},
+    {"id": "3", "feature_id": "1", "status": "doing", "title": "auth_service", ...}
   ],
   "total": 3
 }
@@ -678,8 +556,8 @@ clari memo set <key> '<json>'
 | 포맷 | Scope | 예시 |
 |------|-------|------|
 | `key` | project | `jwt_security` |
-| `phase_id:key` | phase | `1:summary` |
-| `phase_id:task_id:key` | task | `1:3:blockers` |
+| `feature_id:key` | feature | `1:api_decisions` |
+| `feature_id:task_id:key` | task | `1:3:blockers` |
 
 **JSON 포맷**:
 ```json
@@ -754,7 +632,7 @@ clari memo list <scope>   # Scope별
     "project": {
       "": [{"key": "jwt_security", "priority": 1, "summary": "JWT 보안 정책"}]
     },
-    "phase": {
+    "feature": {
       "1": [{"key": "api_conventions", "priority": 1, "summary": "API 규칙"}]
     },
     "task": {
@@ -919,13 +797,13 @@ clari project set '{
 # 플래닝 모드 시작
 clari project plan
 
-# Phase 생성
-clari phase create '{"name": "Database Setup", "order_num": 1}'
-clari phase create '{"name": "API Development", "order_num": 2}'
+# Feature 생성
+clari feature add '{"name": "user_auth", "description": "사용자 인증 시스템"}'
+clari feature add '{"name": "blog_posts", "description": "블로그 포스트 관리"}'
 
 # Task 추가
-clari task push '{"phase_id": 1, "title": "user_table_sql", "content": "CREATE TABLE users..."}'
-clari task push '{"phase_id": 1, "title": "user_model", "content": "User 모델 구현"}'
+clari task push '{"feature_id": 1, "title": "user_table_sql", "content": "CREATE TABLE users..."}'
+clari task push '{"feature_id": 1, "title": "user_model", "content": "User 모델 구현"}'
 ```
 
 ### 3. Execution
@@ -1110,7 +988,7 @@ clari feature start <id>
 
 ```bash
 clari edge add --from <id> --to <id>
-clari edge add --from <id> --to <id> --feature
+clari edge add --feature --from <id> --to <id>
 ```
 
 **플래그**:
@@ -1139,7 +1017,7 @@ Edge 목록 조회
 clari edge list
 clari edge list --feature
 clari edge list --task
-clari edge list --phase <id>
+clari edge list --feature-id <id>
 ```
 
 **응답**:
@@ -1171,7 +1049,7 @@ Edge 삭제
 
 ```bash
 clari edge remove --from <id> --to <id>
-clari edge remove --from <id> --to <id> --feature
+clari edge remove --feature --from <id> --to <id>
 ```
 
 **응답**:
@@ -1504,12 +1382,8 @@ clari fdl verify <feature_id> --strict    # 엄격한 검증 모드
 
 # 자동 Edge 추가
 clari edge infer --feature <id> --auto-add
-
-# Feature Tasks 하위 명령어
-clari feature <id> tasks                   # Feature별 Task 목록
-clari feature <id> tasks --generate        # LLM 기반 Task 생성
 ```
 
 ---
 
-*Claritask Commands Reference v3.0 - 2026-02-03*
+*Claritask Commands Reference v3.1 - 2026-02-03*

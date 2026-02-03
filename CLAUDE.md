@@ -22,11 +22,8 @@ Go 언어 CLI 개발 전문가. Cobra 라이브러리와 SQLite를 사용한 고
 
 ## Planning Rule
 
-### Trigger 조건
+### Planning Trigger 조건
 - 사용자가 명시적으로 '계획 수립해'라고 말하면 계획 수립 절차를 시작한다.
-
-### Planning 작업을 수행할 전문가
-- 개발 계획수립 전문가(`/planner`)가 백그라운드에서 실행한다.
 
 ### Planning Process
 1. 요구사항 명세서(`specs/*`)를 확인한다.
@@ -35,33 +32,23 @@ Go 언어 CLI 개발 전문가. Cobra 라이브러리와 SQLite를 사용한 고
 
 ## Development Rule
 
-### Trigger 조건
+### Development Trigger 조건
 - 사용자가 명시적으로 '개발 실행해'라고 말하면 개발 절차를 시작한다.
-
-### Development 작업을 수행할 전문가
-- 개발 전문가(`/developer`)가 백그라운드에서 실행한다.
 
 ### Development Process
 1. Task 목록(`tasks/*`)을 확인한다.
 2. Task를 하나씩 실행한다.
 3. Task를 완료하면 해당 Task md 파일을 `finished/`로 이동한다.
-4. '/clear'하여 컨텍스트를 초기화한다.
 
-## Testing Rule
+## Report Rule
 
-### Trigger 조건
-- 사용자가 명시적으로 '테스트 실행해'라고 말하면 테스트 절차를 시작한다.
-
-### Testing 작업을 수행할 전문가
-- 테스트 전문가(`/tester`)가 백그라운드에서 실행한다.
-
-### Testing Process
-1. 완료한 개발 업무 목록(`finished/TASK-DEV-*.md`)을 확인한다.
-2. `tasks/` 폴더에 TASK 단위로 테스트 작업지시를 요약해서 md 문서를 전부 생성한다. 파일명은 `TASK-TEST-<task-number>-<task-name>.md`로 한다. test 코드는 `test/`폴더에 생성하는 것으로 한다.
-3. Task 목록(`tasks/*`)을 확인한다.
-4. Task를 하나씩 실행한다.
-5. Task를 완료하면 해당 Task md 파일을 `finished/`로 이동한다.
-6. '/clear'하여 컨텍스트를 초기화한다.
+### Report Trigger 조건
+- 사용자가 명시적으로 '코드 파악해'라고 말하면 개발 절차를 시작한다.
+- 
+### Report Process
+1. 코드 파일 목록(`cmd/*, internal/*, pkg/*, test/*`)을 확인한다.
+2. 파일을 하나씩 열어 분석하여 요약하고 `reports/<파일명>-report.md`를 작성한다.
+3. 모든 파일을 분석하면 최종 전체 보고서(`reports/<0000-00-00>-report.md`)를 작성한다.
 
 ## Project Structure
 

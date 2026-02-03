@@ -1,16 +1,22 @@
-.PHONY: install uninstall
+.PHONY: build install uninstall test
 
 BINARY_NAME := clari
-INSTALL_PATH := $(if $(GOBIN),$(GOBIN),$(if $(GOPATH),$(GOPATH)/bin,$(HOME)/go/bin))
+INSTALL_PATH := /usr/local/bin
 
-install:
+build:
 	@echo "Building $(BINARY_NAME)..."
 	@go build -o $(BINARY_NAME) ./cmd/claritask
-	@mkdir -p $(INSTALL_PATH)
-	@mv $(BINARY_NAME) $(INSTALL_PATH)/$(BINARY_NAME)
+	@echo "Built $(BINARY_NAME)"
+
+install: build
+	@echo "Installing to $(INSTALL_PATH)..."
+	@sudo mv $(BINARY_NAME) $(INSTALL_PATH)/$(BINARY_NAME)
 	@echo "Installed to $(INSTALL_PATH)/$(BINARY_NAME)"
 
 uninstall:
 	@rm -f $(BINARY_NAME)
-	@rm -f $(INSTALL_PATH)/$(BINARY_NAME)
+	@sudo rm -f $(INSTALL_PATH)/$(BINARY_NAME)
 	@echo "Uninstalled $(BINARY_NAME)"
+
+test:
+	@go test ./test/... -v
