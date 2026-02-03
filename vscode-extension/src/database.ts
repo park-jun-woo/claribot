@@ -175,8 +175,18 @@ export class Database {
 
   readAll(): ProjectData {
     const project = this.getProject();
-    const projectExperts = project ? this.getProjectExperts(project.id) : [];
-    const experts = this.getExperts(projectExperts);
+
+    // Handle missing experts/project_experts tables gracefully
+    let projectExperts: string[] = [];
+    let experts: Expert[] = [];
+    try {
+      projectExperts = project ? this.getProjectExperts(project.id) : [];
+      experts = this.getExperts(projectExperts);
+    } catch {
+      // Tables may not exist in older DBs
+      projectExperts = [];
+      experts = [];
+    }
 
     return {
       project,
