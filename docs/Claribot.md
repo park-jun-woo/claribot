@@ -77,7 +77,9 @@ claribot/
 │   │   ├── project/
 │   │   ├── task/
 │   │   ├── message/
+│   │   ├── schedule/
 │   │   ├── edge/
+│   │   ├── prompts/
 │   │   └── tghandler/
 │   └── pkg/
 │       ├── claude/
@@ -100,9 +102,42 @@ projects (
     id TEXT PRIMARY KEY,      -- 'blog', 'api-server'
     name TEXT,
     path TEXT UNIQUE,         -- 프로젝트 경로
+    type TEXT,                -- 'dev.platform', 'dev.cli', 'write.webnovel'
     description TEXT,
     status TEXT,              -- 'active', 'archived'
     created_at, updated_at
+)
+
+schedules (
+    id INTEGER PRIMARY KEY,
+    project_id TEXT,          -- 프로젝트 ID (NULL이면 전역)
+    cron_expr TEXT,           -- "0 7 * * *"
+    message TEXT,             -- Claude Code에 전달할 프롬프트
+    enabled INTEGER,          -- 활성화 여부
+    run_once INTEGER,         -- 1회 실행 후 자동 비활성화
+    last_run TEXT,
+    next_run TEXT,
+    created_at, updated_at
+)
+
+schedule_runs (
+    id INTEGER PRIMARY KEY,
+    schedule_id INTEGER,
+    status TEXT,              -- 'running', 'done', 'failed'
+    result TEXT,
+    error TEXT,
+    started_at, completed_at
+)
+
+messages (
+    id INTEGER PRIMARY KEY,
+    project_id TEXT,          -- 프로젝트 ID (NULL이면 전역)
+    content TEXT,
+    source TEXT,              -- 'telegram', 'cli', 'schedule'
+    status TEXT,              -- 'pending', 'processing', 'done', 'failed'
+    result TEXT,
+    error TEXT,
+    created_at, completed_at
 )
 ```
 
@@ -153,6 +188,7 @@ telegram:
   token: "BOT_TOKEN"
   allowed_users:
     - 123456789
+  admin_chat_id: 123456789     # 스케줄 실행 결과 알림 대상
 
 claude:
   timeout: 1200              # idle timeout (초)
@@ -225,6 +261,9 @@ claribot
 - [x] 로깅 시스템
 - [x] Graceful shutdown
 - [x] 설정 검증
+- [x] Schedule 시스템 (cron 기반)
+- [x] 스케줄 실행 결과 텔레그램 알림
+- [x] Message 전역 실행 지원
 
 ---
 

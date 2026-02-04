@@ -23,10 +23,11 @@
 ```go
 Schedule {
     ID         int
-    ProjectID  string    // 프로젝트 ID (NULL이면 전역)
+    ProjectID  *string   // 프로젝트 ID (NULL이면 전역)
     CronExpr   string    // "0 7 * * *" (매일 7시)
     Message    string    // Claude Code에 전달할 프롬프트
     Enabled    bool      // 활성화 여부
+    RunOnce    bool      // 1회 실행 후 자동 비활성화
     LastRun    *string   // 마지막 실행 시간
     NextRun    *string   // 다음 실행 예정 시간
     CreatedAt  string
@@ -80,6 +81,7 @@ CREATE TABLE IF NOT EXISTS schedules (
     cron_expr TEXT NOT NULL,
     message TEXT NOT NULL,
     enabled INTEGER DEFAULT 1,
+    run_once INTEGER DEFAULT 0,
     last_run TEXT,
     next_run TEXT,
     created_at TEXT NOT NULL,
@@ -118,6 +120,7 @@ CREATE INDEX IF NOT EXISTS idx_schedule_runs_status ON schedule_runs(status);
 # 스케줄 추가
 schedule add "0 7 * * *" "오늘의 할일 목록을 정리해줘"
 schedule add --project claribot "0 9 * * 1-5" "코드 품질 리포트 작성해줘"
+schedule add --once "30 14 * * *" "5분 뒤 알림 테스트"  # 1회 실행 후 자동 비활성화
 
 # 스케줄 목록
 schedule list              # 현재 프로젝트 스케줄
@@ -132,6 +135,10 @@ schedule delete <id>
 # 활성화/비활성화
 schedule enable <id>
 schedule disable <id>
+
+# 프로젝트 변경
+schedule set project <id> <project_id>   # 스케줄의 프로젝트 변경
+schedule set project <id> none           # 전역 실행으로 변경
 ```
 
 ### 실행 기록 조회
@@ -217,6 +224,7 @@ bot/internal/
 │   ├── delete.go        # 스케줄 삭제
 │   ├── toggle.go        # 활성화/비활성화
 │   ├── runs.go          # 실행 기록 조회
+│   ├── set.go           # 스케줄 속성 변경
 │   └── scheduler.go     # cron 매니저 + 실행 로직
 ├── handler/
 │   └── router.go        # schedule 명령어
@@ -231,6 +239,19 @@ bot/internal/
 ```go
 import "github.com/robfig/cron/v3"
 ```
+
+---
+
+## run_once 동작
+
+1회 실행 옵션(`--once`)이 설정된 스케줄은:
+
+1. cron 시간 도달 시 정상 실행
+2. Claude Code 실행 **전에** 스케줄 자동 비활성화 (enabled=0)
+3. cron에서 해당 job 제거
+4. 실행 결과는 정상적으로 저장
+
+**실행 전 비활성화 이유**: Claude Code 실행 중 오류가 발생해도 재실행되지 않도록 방지
 
 ---
 

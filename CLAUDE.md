@@ -37,6 +37,7 @@ claribot/
 
 - [docs/Claribot.md](docs/Claribot.md) - 아키텍처, DB 스키마, 구현 현황
 - [docs/Task.md](docs/Task.md) - Task 시스템 설계 (분할 정복, 순회 로직)
+- [docs/Schedule.md](docs/Schedule.md) - Schedule 시스템 설계 (cron 기반 자동 실행)
 
 ## Coding Conventions
 

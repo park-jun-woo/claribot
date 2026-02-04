@@ -10,6 +10,7 @@ LLM 기반 프로젝트 자동화 시스템. Telegram 봇과 CLI로 Claude Code�
 - **Claude Code 연동**: PTY 기반 Claude Code 실행 및 결과 반환
 - **Task 기반 워크플로우**: 메시지 → Task 변환 → 실행 → 결과 보고
 - **Edge 그래프**: Task 간 의존성 관리
+- **Cron 스케줄러**: 지정 시간에 자동 Claude 실행 및 결과 알림
 
 ## Architecture
 
@@ -18,14 +19,14 @@ LLM 기반 프로젝트 자동화 시스템. Telegram 봇과 CLI로 Claude Code�
 │                    claribot (daemon)                    │
 │                                                         │
 │  ┌───────────┐  ┌───────────┐  ┌───────────────────┐   │
-│  │ Telegram  │  │    CLI    │  │   Claude Code     │   │
-│  │  Handler  │  │  Handler  │  │     Manager       │   │
+│  │ Telegram  │  │    CLI    │  │    Scheduler      │   │
+│  │  Handler  │  │  Handler  │  │     (cron)        │   │
 │  └─────┬─────┘  └─────┬─────┘  └─────────┬─────────┘   │
 │        │              │                   │             │
 │        └──────────────┼───────────────────┘             │
 │                       ▼                                 │
 │               ┌──────────────┐                          │
-│               │   Router     │                          │
+│               │ Router/Claude│                          │
 │               └──────────────┘                          │
 └─────────────────────────────────────────────────────────┘
          ▲                              ▲
@@ -87,6 +88,7 @@ service:
 telegram:
   token: "YOUR_BOT_TOKEN"    # @BotFather에서 발급
   allowed_users: []          # 빈 배열 = 모두 허용, [123456789] = 특정 유저만
+  admin_chat_id: 0           # 스케줄 실행 결과 알림 대상 (0 = 비활성화)
 
 # Claude Code
 claude:
@@ -140,6 +142,17 @@ clari send "코드 리뷰해줘"       # 메시지 전송 → Claude 실행
 clari message list              # 메시지 기록
 clari message status            # 메시지 상태 요약
 
+# 스케줄 관리
+clari schedule list             # 스케줄 목록
+clari schedule add "0 7 * * *" "아침 인사"  # 스케줄 추가
+clari schedule add --once "30 14 * * *" "1회 알림"  # 1회 실행
+clari schedule get <id>         # 스케줄 상세
+clari schedule enable <id>      # 활성화
+clari schedule disable <id>     # 비활성화
+clari schedule delete <id>      # 삭제
+clari schedule runs <id>        # 실행 기록
+clari schedule set project <id> <project>  # 프로젝트 변경
+
 # 상태
 clari status                    # 현재 프로젝트 상태
 ```
@@ -167,7 +180,9 @@ claribot/
 │   │   ├── project/        # 프로젝트 관리
 │   │   ├── task/           # 태스크 관리
 │   │   ├── message/        # 메시지 처리
+│   │   ├── schedule/       # 스케줄 관리
 │   │   ├── edge/           # 태스크 의존성
+│   │   ├── prompts/        # 시스템 프롬프트 템플릿
 │   │   └── tghandler/      # Telegram 핸들러
 │   └── pkg/                # 공개 패키지
 │       ├── claude/         # Claude Code 실행
@@ -187,7 +202,7 @@ claribot/
 
 ### Global DB (`~/.claribot/db.clt`)
 
-프로젝트 목록 및 경로 매핑
+프로젝트, 스케줄, 메시지 관리
 
 ```sql
 projects (
@@ -199,23 +214,55 @@ projects (
     status TEXT,
     created_at, updated_at
 )
+
+schedules (
+    id INTEGER PRIMARY KEY,
+    project_id TEXT,          -- NULL이면 전역 실행
+    cron_expr TEXT,
+    message TEXT,
+    enabled INTEGER,
+    run_once INTEGER,         -- 1회 실행 후 자동 비활성화
+    last_run TEXT,
+    next_run TEXT,
+    created_at, updated_at
+)
+
+schedule_runs (
+    id INTEGER PRIMARY KEY,
+    schedule_id INTEGER,
+    status TEXT,              -- 'running', 'done', 'failed'
+    result TEXT,
+    error TEXT,
+    started_at, completed_at
+)
+
+messages (
+    id INTEGER PRIMARY KEY,
+    project_id TEXT,          -- NULL이면 전역 실행
+    content TEXT,
+    source TEXT,              -- 'telegram', 'cli', 'schedule'
+    status TEXT,
+    result TEXT,
+    error TEXT,
+    created_at, completed_at
+)
 ```
 
 ### Local DB (`<project>/.claribot/db.clt`)
 
-프로젝트별 태스크, 메시지 (git으로 관리 가능)
+프로젝트별 태스크 (git으로 관리 가능)
 
 ```sql
 tasks (
     id INTEGER PRIMARY KEY,
     parent_id INTEGER,
-    source TEXT,
     title TEXT,
-    content TEXT,
-    status TEXT,
-    result TEXT,
+    spec TEXT,                -- 요구사항 명세서
+    plan TEXT,                -- 실행 계획서
+    report TEXT,              -- 완료 보고서
+    status TEXT,              -- 'spec_ready', 'plan_ready', 'done', 'failed'
     error TEXT,
-    created_at, started_at, completed_at
+    created_at, updated_at
 )
 
 task_edges (
