@@ -1,4 +1,4 @@
-# Claritask Project
+# Claribot Project
 
 ## Role
 
@@ -44,7 +44,7 @@ Go 언어 CLI 개발 전문가. Cobra 라이브러리와 SQLite를 사용한 고
 
 ### Report Trigger 조건
 - 사용자가 명시적으로 '코드 파악해'라고 말하면 개발 절차를 시작한다.
-- 
+
 ### Report Process
 1. 코드 파일 목록(`cli/cmd/*, cli/internal/*, cli/test/*`)을 확인한다.
 2. 파일을 하나씩 열어 분석하여 요약하고 `reports/<0000-00-00>/<파일명>-report.md`를 작성한다.
@@ -53,31 +53,11 @@ Go 언어 CLI 개발 전문가. Cobra 라이브러리와 SQLite를 사용한 고
 ## Project Structure
 
 ```
-claritask/
-├── cli/                     # Go CLI 소스코드
-│   ├── cmd/claritask/       # 메인 진입점
-│   │   └── main.go
-│   ├── internal/
-│   │   ├── cmd/             # Cobra 명령어
-│   │   ├── db/              # 데이터베이스 레이어
-│   │   ├── model/           # 데이터 모델
-│   │   └── service/         # 비즈니스 로직
-│   ├── test/
-│   ├── scripts/
-│   ├── go.mod
-│   ├── go.sum
-│   └── Makefile
-├── vscode-extension/        # VSCode Extension 소스코드
-├── specs/                   # 요구사항 명세서
-│   ├── Claritask.md
-│   ├── CLI/
-│   ├── DB/
-│   ├── FDL/
-│   ├── TTY/
-│   └── VSCode/
-├── tasks/                   # 해야할 Task 문서 폴더
-├── finished/                # 완료한 Task 문서 폴더
-└── talks/                   # 요약 저장한 대화내역
+claribot/
+├── bot/          # Claribot Go 소스코드
+├── cli/          # Go CLI 소스코드
+├── vsx/          # Claribot VSCode Extension 소스코드
+└── Claribot.md  # Claribot 개요
 ```
 
 ## Coding Conventions
@@ -113,7 +93,7 @@ type Response struct {
 
 ## Database
 
-- 위치: `.claritask/db.clt`
+- 위치: `~/.claribot/db`
 - 자동 생성: 첫 실행 시 또는 'clari init <project>'로 생성시
 - 마이그레이션: 앱 시작 시 자동
 
@@ -146,7 +126,7 @@ var exampleCmd = &cobra.Command{
 ```go
 func getDB() (*db.DB, error) {
     home, _ := os.UserHomeDir()
-    dbPath := filepath.Join(home, ".claritask", "db")
+    dbPath := filepath.Join(home, ".claribot", "db")
     return db.Open(dbPath)
 }
 ```
@@ -169,12 +149,11 @@ func outputJSON(v interface{}) {
 
 ### ID 규칙
 - **Project**: 영문 소문자, 숫자, 하이픈(-), 언더스코어(_) - 예: `blog`, `api-server`
-- **Phase/Task**: 정수 (auto increment)
+- **Feature/Task**: 정수 (auto increment)
 
 ## References
-- specs/* - 전체 요구사항 명세서
-- tasks/* - 구현 계획 Task 파일들
-- talks/* - 사용자와 클로드 코드의 과거 대화 내용
+- bak-0.1/* - Claribot 과거버전. 참고용.
+- Claribot.md - 현재 프로젝트의 개요 문서
 
 ## 버전 표기 규칙
 - vX.X.N 형식이며 테스트하며 수정할때 N 숫자만 올려라. 10이 넘어도 vX.X.11로 표기하라.
