@@ -1,6 +1,6 @@
 # Claribot v0.2
 
-> **버전**: v0.2.3
+> **버전**: v0.2.19
 
 ---
 
@@ -65,13 +65,26 @@
 ```
 claribot/
 ├── Makefile
-├── claribot.service.template
+├── deploy/
+│   ├── claribot.service.template
+│   └── config.example.yaml
 ├── bot/
 │   ├── cmd/claribot/main.go
-│   ├── internal/db/db.go
+│   ├── internal/
+│   │   ├── config/
+│   │   ├── db/
+│   │   ├── handler/
+│   │   ├── project/
+│   │   ├── task/
+│   │   ├── message/
+│   │   ├── edge/
+│   │   └── tghandler/
 │   └── pkg/
-│       ├── claude/claude.go
-│       └── telegram/telegram.go
+│       ├── claude/
+│       ├── telegram/
+│       ├── render/
+│       ├── logger/
+│       └── errors/
 └── cli/
     └── cmd/clari/main.go
 ```
@@ -204,11 +217,15 @@ claribot
 - [x] Telegram 패키지 (버튼, 콜백)
 - [x] claribot 메인 (Telegram 연동)
 - [x] 프로젝트 스위칭
-- [ ] 메시지 → Task 생성 로직
-- [ ] Claude Code TTY 연동
-- [ ] Task 실행 및 결과 반환
-- [ ] clari CLI HTTP 클라이언트
+- [x] 메시지 → Task 생성 로직
+- [x] Claude Code PTY 연동
+- [x] Task 실행 및 결과 반환
+- [x] clari CLI HTTP 클라이언트 (POST 방식)
+- [x] Markdown → HTML 렌더링
+- [x] 로깅 시스템
+- [x] Graceful shutdown
+- [x] 설정 검증
 
 ---
 
-*Claribot v0.2.3*
+*Claribot v0.2.19*
