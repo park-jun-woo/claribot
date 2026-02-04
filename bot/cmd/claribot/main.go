@@ -3,72 +3,72 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
+	"parkjunwoo.com/claribot/internal/config"
 	"parkjunwoo.com/claribot/internal/db"
 	"parkjunwoo.com/claribot/internal/handler"
 	"parkjunwoo.com/claribot/internal/project"
 	"parkjunwoo.com/claribot/internal/tghandler"
+	"parkjunwoo.com/claribot/internal/types"
 	"parkjunwoo.com/claribot/pkg/claude"
+	"parkjunwoo.com/claribot/pkg/logger"
 	"parkjunwoo.com/claribot/pkg/telegram"
-
-	"gopkg.in/yaml.v3"
 )
 
-const Version = "0.2.14"
+const Version = "0.2.19"
 
 // Router for command handling
 var router *handler.Router
-
-// Config represents the full configuration
-type Config struct {
-	Service struct {
-		Port int    `yaml:"port"`
-		Host string `yaml:"host"`
-	} `yaml:"service"`
-	Telegram struct {
-		Token        string  `yaml:"token"`
-		AllowedUsers []int64 `yaml:"allowed_users"`
-	} `yaml:"telegram"`
-	Claude struct {
-		Timeout int `yaml:"timeout"` // seconds
-		Max     int `yaml:"max"`
-	} `yaml:"claude"`
-	Project struct {
-		Path string `yaml:"path"` // 프로젝트 생성 기본 경로
-	} `yaml:"project"`
-	Pagination struct {
-		PageSize int `yaml:"page_size"` // 페이지당 항목 수 (기본값: 10)
-	} `yaml:"pagination"`
-}
-
 var bot *telegram.Bot
 
 func main() {
-	cfg := loadConfig()
+	// Load config
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("Warning: config load error: %v (using defaults)\n", err)
+	}
+
+	// Validate config
+	warnings := cfg.Validate()
+	for _, w := range warnings {
+		fmt.Printf("Config warning: %s\n", w)
+	}
+
+	// Initialize logger
+	if err := logger.Init(logger.Config{
+		Level:    cfg.Log.Level,
+		FilePath: cfg.GetLogFilePath(),
+	}); err != nil {
+		fmt.Printf("Warning: logger init error: %v\n", err)
+	}
+	defer logger.Close()
+
+	logger.Info("claribot v%s starting...", Version)
 
 	// Initialize global DB
 	globalDB, err := db.OpenGlobal()
 	if err != nil {
-		log.Fatalf("Failed to open global DB: %v", err)
+		logger.Error("Failed to open global DB: %v", err)
+		os.Exit(1)
 	}
 	if err := globalDB.MigrateGlobal(); err != nil {
-		log.Fatalf("Failed to migrate global DB: %v", err)
+		logger.Error("Failed to migrate global DB: %v", err)
+		os.Exit(1)
 	}
 	globalDB.Close()
-	log.Println("Global DB initialized")
+	logger.Info("Global DB initialized")
 
 	// Initialize Claude manager
 	claude.Init(claude.Config{
 		Timeout: time.Duration(cfg.Claude.Timeout) * time.Second,
 		Max:     cfg.Claude.Max,
 	})
+	logger.Info("Claude manager initialized (max=%d, timeout=%ds)", cfg.Claude.Max, cfg.Claude.Timeout)
 
 	// Initialize router
 	router = handler.NewRouter()
@@ -76,21 +76,22 @@ func main() {
 	// Set pagination page size
 	if cfg.Pagination.PageSize > 0 {
 		router.SetPageSize(cfg.Pagination.PageSize)
-		log.Printf("Page size: %d", cfg.Pagination.PageSize)
+		logger.Debug("Page size: %d", cfg.Pagination.PageSize)
 	}
 
 	// Set project default path
 	if cfg.Project.Path != "" {
 		project.SetDefaultPath(cfg.Project.Path)
-		log.Printf("Project path: %s", project.DefaultPath)
+		logger.Info("Project path: %s", project.DefaultPath)
 	}
 
 	// Initialize Telegram bot
-	if cfg.Telegram.Token != "" && cfg.Telegram.Token != "BOT_TOKEN" {
+	if cfg.IsTelegramEnabled() {
 		var err error
 		bot, err = telegram.New(cfg.Telegram.Token)
 		if err != nil {
-			log.Fatalf("Failed to create telegram bot: %v", err)
+			logger.Error("Failed to create telegram bot: %v", err)
+			os.Exit(1)
 		}
 
 		// Setup handler (also registers menu commands)
@@ -99,11 +100,12 @@ func main() {
 		bot.SetCallbackHandler(tgHandler.HandleCallback)
 
 		if err := bot.Start(); err != nil {
-			log.Fatalf("Failed to start telegram bot: %v", err)
+			logger.Error("Failed to start telegram bot: %v", err)
+			os.Exit(1)
 		}
-		log.Printf("Telegram bot connected: @%s", bot.Username())
+		logger.Info("Telegram bot connected: @%s", bot.Username())
 	} else {
-		log.Println("Telegram bot disabled (no token configured)")
+		logger.Info("Telegram bot disabled (no token configured)")
 	}
 
 	// Setup HTTP handler
@@ -112,9 +114,10 @@ func main() {
 	// Start HTTP server in goroutine
 	addr := fmt.Sprintf("%s:%d", cfg.Service.Host, cfg.Service.Port)
 	go func() {
-		log.Printf("claribot v%s starting on %s", Version, addr)
+		logger.Info("HTTP server starting on %s", addr)
 		if err := http.ListenAndServe(addr, nil); err != nil {
-			log.Fatalf("Failed to start server: %v", err)
+			logger.Error("HTTP server error: %v", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -123,56 +126,59 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 
-	log.Println("Shutting down...")
+	logger.Info("Shutting down...")
+
+	// Graceful shutdown
 	if bot != nil {
 		bot.Stop()
-	}
-	log.Println("Goodbye!")
-}
-
-func loadConfig() Config {
-	cfg := Config{}
-	// defaults
-	cfg.Service.Host = "127.0.0.1"
-	cfg.Service.Port = 9847
-	cfg.Claude.Timeout = 1200
-	cfg.Claude.Max = 3
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Printf("Warning: cannot get home directory: %v", err)
-		return cfg
+		logger.Info("Telegram bot stopped")
 	}
 
-	configPath := filepath.Join(homeDir, ".claribot", "config.yaml")
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		log.Printf("Warning: cannot read config file: %v (using defaults)", err)
-		return cfg
+	// Shutdown Claude sessions
+	activeSessions := claude.ActiveSessions()
+	if activeSessions > 0 {
+		logger.Info("Closing %d active Claude sessions...", activeSessions)
+		claude.Shutdown()
+		logger.Info("Claude sessions closed")
 	}
 
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		log.Printf("Warning: cannot parse config file: %v (using defaults)", err)
-		return cfg
-	}
-
-	log.Printf("Config loaded from %s", configPath)
-	return cfg
+	logger.Info("Goodbye!")
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
-	args := r.URL.Query().Get("args")
+	w.Header().Set("Content-Type", "application/json")
 
-	if args == "" {
-		http.Error(w, `{"success":false,"message":"missing args parameter"}`, http.StatusBadRequest)
-		return
+	var cmdStr string
+
+	if r.Method == http.MethodPost {
+		// POST: JSON body
+		var req types.Request
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(types.Result{
+				Success: false,
+				Message: "invalid JSON: " + err.Error(),
+			})
+			return
+		}
+		cmdStr = req.ToCommandString()
+		logger.Debug("[CLI/POST] %s", cmdStr)
+	} else {
+		// GET: query parameter (backward compatibility)
+		cmdStr = r.URL.Query().Get("args")
+		if cmdStr == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(types.Result{
+				Success: false,
+				Message: "missing args parameter",
+			})
+			return
+		}
+		logger.Debug("[CLI/GET] %s", cmdStr)
 	}
 
-	log.Printf("[CLI] %s", args)
+	result := router.Execute(cmdStr)
 
-	result := router.Execute(args)
-
-	w.Header().Set("Content-Type", "application/json")
 	if !result.Success {
 		w.WriteHeader(http.StatusBadRequest)
 	}

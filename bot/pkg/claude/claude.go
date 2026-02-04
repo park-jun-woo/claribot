@@ -32,9 +32,11 @@ func DefaultConfig() Config {
 
 // Manager manages Claude Code execution with concurrency control
 type Manager struct {
-	config Config
-	sem    chan struct{}
-	mu     sync.RWMutex
+	config   Config
+	sem      chan struct{}
+	mu       sync.RWMutex
+	sessions map[*Session]struct{} // track active sessions
+	closed   bool
 }
 
 // global manager instance
@@ -47,10 +49,49 @@ var (
 func Init(cfg Config) {
 	managerOnce.Do(func() {
 		globalManager = &Manager{
-			config: cfg,
-			sem:    make(chan struct{}, cfg.Max),
+			config:   cfg,
+			sem:      make(chan struct{}, cfg.Max),
+			sessions: make(map[*Session]struct{}),
 		}
 	})
+}
+
+// Shutdown gracefully shuts down all active sessions
+func Shutdown() {
+	if globalManager == nil {
+		return
+	}
+	globalManager.Shutdown()
+}
+
+// Shutdown closes all active sessions
+func (m *Manager) Shutdown() {
+	m.mu.Lock()
+	m.closed = true
+	sessions := make([]*Session, 0, len(m.sessions))
+	for s := range m.sessions {
+		sessions = append(sessions, s)
+	}
+	m.mu.Unlock()
+
+	for _, s := range sessions {
+		s.Close()
+	}
+}
+
+// ActiveSessions returns number of active sessions
+func ActiveSessions() int {
+	if globalManager == nil {
+		return 0
+	}
+	return globalManager.ActiveSessions()
+}
+
+// ActiveSessions returns number of active sessions
+func (m *Manager) ActiveSessions() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.sessions)
 }
 
 // GetManager returns the global manager, initializing with defaults if needed
@@ -228,6 +269,13 @@ func StartSessionContext(ctx context.Context, opts Options) (*Session, error) {
 
 // StartSession starts an interactive Claude Code session with concurrency control
 func (m *Manager) StartSession(ctx context.Context, opts Options) (*Session, error) {
+	m.mu.RLock()
+	if m.closed {
+		m.mu.RUnlock()
+		return nil, fmt.Errorf("manager is shutting down")
+	}
+	m.mu.RUnlock()
+
 	// Acquire semaphore
 	select {
 	case m.sem <- struct{}{}:
@@ -251,12 +299,19 @@ func (m *Manager) StartSession(ctx context.Context, opts Options) (*Session, err
 		return nil, fmt.Errorf("failed to start interactive session: %w", err)
 	}
 
-	return &Session{
+	session := &Session{
 		cmd:     cmd,
 		pty:     ptmx,
 		cancel:  cancel,
 		manager: m,
-	}, nil
+	}
+
+	// Track session
+	m.mu.Lock()
+	m.sessions[session] = struct{}{}
+	m.mu.Unlock()
+
+	return session, nil
 }
 
 // Send sends a message to the Claude Code session and reads response
@@ -311,6 +366,11 @@ func (s *Session) Close() error {
 	s.cancel()
 	s.pty.Close()
 	err := s.cmd.Wait()
+
+	// Untrack session
+	s.manager.mu.Lock()
+	delete(s.manager.sessions, s)
+	s.manager.mu.Unlock()
 
 	// Release semaphore
 	<-s.manager.sem

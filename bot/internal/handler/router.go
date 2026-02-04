@@ -364,7 +364,7 @@ func (r *Router) handleMessage(cmd string, args []string) types.Result {
 	if cmd == "" {
 		return types.Result{
 			Success: true,
-			Message: "message 명령어:\n  [목록:message list]\n  [전송:message send]",
+			Message: "message 명령어:\n  [목록:message list]\n  [전송:message send]\n  [상태:message status]",
 		}
 	}
 
@@ -399,6 +399,10 @@ func (r *Router) handleMessage(cmd string, args []string) types.Result {
 			return message.List(r.ctx.ProjectPath, pagination.NewPageRequest(1, r.pageSize))
 		}
 		return message.Get(r.ctx.ProjectPath, args[0])
+	case "status":
+		return message.Status(r.ctx.ProjectPath)
+	case "processing":
+		return message.Processing(r.ctx.ProjectPath)
 	default:
 		return types.Result{Success: false, Message: fmt.Sprintf("unknown message command: %s", cmd)}
 	}

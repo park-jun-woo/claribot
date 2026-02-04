@@ -1,0 +1,30 @@
+# Claribot Configuration
+# Copy to ~/.claribot/config.yaml
+
+# HTTP Service
+service:
+  host: 127.0.0.1  # default: 127.0.0.1
+  port: 9847       # default: 9847
+
+# Telegram Bot
+telegram:
+  token: "YOUR_BOT_TOKEN"  # Get from @BotFather
+  allowed_users: []        # Empty = allow all, or [123456789, 987654321]
+
+# Claude Code Execution
+claude:
+  timeout: 1200  # Idle timeout in seconds (default: 1200 = 20 min)
+  max: 3         # Max concurrent instances (default: 3, max: 10)
+
+# Project Management
+project:
+  path: ~/projects  # Default path for new projects
+
+# Pagination
+pagination:
+  page_size: 10  # Items per page (default: 10, max: 100)
+
+# Logging
+log:
+  level: info              # debug, info, warn, error (default: info)
+  file: ~/.claribot/claribot.log  # Empty = stdout only

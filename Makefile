@@ -48,7 +48,7 @@ install-bot: build-bot
 	sudo cp bin/claribot $(BIN_DIR)/claribot
 	sudo chmod +x $(BIN_DIR)/claribot
 	@echo "Creating systemd service file..."
-	@sed -e 's|__USER__|$(USER)|g' -e 's|__HOME__|$(HOME_DIR)|g' claribot.service.template > /tmp/$(SERVICE_NAME)
+	@sed -e 's|__USER__|$(USER)|g' -e 's|__HOME__|$(HOME_DIR)|g' deploy/claribot.service.template > /tmp/$(SERVICE_NAME)
 	sudo mv /tmp/$(SERVICE_NAME) $(SYSTEMD_DIR)/$(SERVICE_NAME)
 	sudo systemctl daemon-reload
 	sudo systemctl enable $(SERVICE_NAME)

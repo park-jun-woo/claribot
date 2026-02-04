@@ -164,27 +164,100 @@ func ToHTMLFile(markdown, title string) (string, error) {
 	return fullHTML, nil
 }
 
-// ExtractTitle extracts title from markdown (first # heading or first line)
-func ExtractTitle(markdown string) string {
-	lines := strings.Split(markdown, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "# ") {
-			return strings.TrimPrefix(line, "# ")
-		}
-		if strings.HasPrefix(line, "## ") {
-			return strings.TrimPrefix(line, "## ")
+// summaryHeadings are headings that indicate a summary section
+var summaryHeadings = []string{
+	"요약", "summary",
+}
+
+// isSummaryHeading checks if a heading is a summary section title
+func isSummaryHeading(title string) bool {
+	lower := strings.ToLower(strings.TrimSpace(title))
+	for _, s := range summaryHeadings {
+		if lower == s {
+			return true
 		}
 	}
-	// Fallback: first non-empty line, truncated
+	return false
+}
+
+// ExtractTitle extracts title from markdown
+// Priority: content after "## 요약" > first meaningful heading > first content line
+func ExtractTitle(markdown string) string {
+	lines := strings.Split(markdown, "\n")
+
+	// First pass: find "## 요약" or "## Summary" and return the next non-empty line
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		var heading string
+		if strings.HasPrefix(line, "## ") {
+			heading = strings.TrimPrefix(line, "## ")
+		} else if strings.HasPrefix(line, "# ") {
+			heading = strings.TrimPrefix(line, "# ")
+		}
+
+		if heading != "" && isSummaryHeading(heading) {
+			// Find next non-empty, non-heading line
+			for j := i + 1; j < len(lines); j++ {
+				nextLine := strings.TrimSpace(lines[j])
+				if nextLine == "" {
+					continue
+				}
+				// Stop if we hit another heading
+				if strings.HasPrefix(nextLine, "#") {
+					break
+				}
+				// Remove list markers
+				if strings.HasPrefix(nextLine, "- ") {
+					nextLine = strings.TrimPrefix(nextLine, "- ")
+				} else if strings.HasPrefix(nextLine, "* ") {
+					nextLine = strings.TrimPrefix(nextLine, "* ")
+				}
+				if len(nextLine) > 80 {
+					return nextLine[:80] + "..."
+				}
+				return nextLine
+			}
+		}
+	}
+
+	// Second pass: first non-summary heading
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
+		var title string
+		if strings.HasPrefix(line, "# ") {
+			title = strings.TrimPrefix(line, "# ")
+		} else if strings.HasPrefix(line, "## ") {
+			title = strings.TrimPrefix(line, "## ")
+		} else if strings.HasPrefix(line, "### ") {
+			title = strings.TrimPrefix(line, "### ")
+		}
+
+		if title != "" && !isSummaryHeading(title) {
+			if len(title) > 80 {
+				return title[:80] + "..."
+			}
+			return title
+		}
+	}
+
+	// Third pass: first non-empty content line
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "- ") {
+			line = strings.TrimPrefix(line, "- ")
+		} else if strings.HasPrefix(line, "* ") {
+			line = strings.TrimPrefix(line, "* ")
+		}
 		if line != "" {
-			if len(line) > 50 {
-				return line[:50] + "..."
+			if len(line) > 80 {
+				return line[:80] + "..."
 			}
 			return line
 		}
 	}
+
 	return "Report"
 }
