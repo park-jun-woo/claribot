@@ -25,16 +25,16 @@ func Run(projectPath, id string) types.Result {
 	var t Task
 
 	if id == "" {
-		// Get next plan_ready task
+		// Get next plan_ready leaf task
 		err = localDB.QueryRow(`
 			SELECT id, title, spec, plan, status FROM tasks
-			WHERE status = 'plan_ready' AND parent_id IS NULL
-			ORDER BY id ASC LIMIT 1
+			WHERE status = 'plan_ready' AND is_leaf = 1
+			ORDER BY depth DESC, id ASC LIMIT 1
 		`).Scan(&t.ID, &t.Title, &t.Spec, &t.Plan, &t.Status)
 		if err == sql.ErrNoRows {
 			return types.Result{
 				Success: true,
-				Message: "실행할 작업이 없습니다. (plan_ready 상태 작업 없음)\n[작업 목록:task list]",
+				Message: "실행할 작업이 없습니다. (plan_ready 상태 leaf 작업 없음)\n[작업 목록:task list]",
 			}
 		}
 	} else {
@@ -136,11 +136,11 @@ func RunAll(projectPath string) types.Result {
 	}
 	defer localDB.Close()
 
-	// Get all plan_ready tasks
+	// Get all plan_ready leaf tasks (deepest first)
 	rows, err := localDB.Query(`
 		SELECT id, title FROM tasks
-		WHERE status = 'plan_ready'
-		ORDER BY id ASC
+		WHERE status = 'plan_ready' AND is_leaf = 1
+		ORDER BY depth DESC, id ASC
 	`)
 	if err != nil {
 		return types.Result{

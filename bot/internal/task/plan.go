@@ -10,7 +10,7 @@ import (
 	"parkjunwoo.com/claribot/pkg/claude"
 )
 
-// Plan generates plan for a task (1회차 순회: spec_ready → plan_ready)
+// Plan generates plan for a task (1회차 순회: spec_ready → plan_ready/subdivided)
 // If id is empty, plans next spec_ready task
 func Plan(projectPath, id string) types.Result {
 	localDB, err := db.OpenLocal(projectPath)
@@ -25,12 +25,12 @@ func Plan(projectPath, id string) types.Result {
 	var t Task
 
 	if id == "" {
-		// Get next spec_ready task
+		// Get next spec_ready task (root level first)
 		err = localDB.QueryRow(`
-			SELECT id, title, spec, plan, status FROM tasks
-			WHERE status = 'spec_ready' AND parent_id IS NULL
-			ORDER BY id ASC LIMIT 1
-		`).Scan(&t.ID, &t.Title, &t.Spec, &t.Plan, &t.Status)
+			SELECT id, parent_id, title, spec, plan, status, is_leaf, depth FROM tasks
+			WHERE status = 'spec_ready'
+			ORDER BY depth ASC, id ASC LIMIT 1
+		`).Scan(&t.ID, &t.ParentID, &t.Title, &t.Spec, &t.Plan, &t.Status, &t.IsLeaf, &t.Depth)
 		if err == sql.ErrNoRows {
 			return types.Result{
 				Success: true,
@@ -39,8 +39,8 @@ func Plan(projectPath, id string) types.Result {
 		}
 	} else {
 		err = localDB.QueryRow(`
-			SELECT id, title, spec, plan, status FROM tasks WHERE id = ?
-		`, id).Scan(&t.ID, &t.Title, &t.Spec, &t.Plan, &t.Status)
+			SELECT id, parent_id, title, spec, plan, status, is_leaf, depth FROM tasks WHERE id = ?
+		`, id).Scan(&t.ID, &t.ParentID, &t.Title, &t.Spec, &t.Plan, &t.Status, &t.IsLeaf, &t.Depth)
 		if err == sql.ErrNoRows {
 			return types.Result{
 				Success: false,
@@ -70,6 +70,15 @@ func Plan(projectPath, id string) types.Result {
 		}
 	}
 
+	// Execute plan recursively
+	return planRecursive(localDB, projectPath, &t)
+}
+
+// planRecursive executes plan for a task and its children recursively
+func planRecursive(localDB *db.DB, projectPath string, t *Task) types.Result {
+	// Check depth limit - force plan if at max depth
+	forceLeaf := t.Depth >= MaxDepth
+
 	// Get related tasks' specs
 	relatedTasks, err := GetRelatedSpecs(localDB, t.ID)
 	if err != nil {
@@ -80,7 +89,12 @@ func Plan(projectPath, id string) types.Result {
 	}
 
 	// Build prompt
-	prompt := BuildPlanPrompt(&t, relatedTasks)
+	prompt := BuildPlanPrompt(t, relatedTasks)
+
+	// Add force leaf instruction if at max depth
+	if forceLeaf {
+		prompt += "\n\n⚠️ 최대 깊이에 도달했습니다. 반드시 [PLANNED] 형식으로 계획을 작성하세요. 분할은 불가능합니다."
+	}
 
 	// Run Claude Code
 	opts := claude.Options{
@@ -97,7 +111,7 @@ func Plan(projectPath, id string) types.Result {
 	}
 
 	if result.ExitCode != 0 {
-		// Save error and mark as failed
+		// Save error
 		now := db.TimeNow()
 		if _, err := localDB.Exec(`UPDATE tasks SET error = ?, updated_at = ? WHERE id = ?`, result.Output, now, t.ID); err != nil {
 			log.Printf("[Task] Plan 에러 저장 실패 (task #%d): %v", t.ID, err)
@@ -108,9 +122,72 @@ func Plan(projectPath, id string) types.Result {
 		}
 	}
 
-	// Save plan and update status
+	// Parse output
+	planResult := ParsePlanOutput(result.Output)
 	now := db.TimeNow()
-	_, err = localDB.Exec(`UPDATE tasks SET plan = ?, status = 'plan_ready', updated_at = ? WHERE id = ?`, result.Output, now, t.ID)
+
+	if planResult.Type == "subdivided" && !forceLeaf {
+		// Mark as subdivided, not a leaf
+		_, err = localDB.Exec(`
+			UPDATE tasks SET status = 'subdivided', is_leaf = 0, updated_at = ? WHERE id = ?
+		`, now, t.ID)
+		if err != nil {
+			return types.Result{
+				Success: false,
+				Message: fmt.Sprintf("상태 업데이트 실패: %v", err),
+			}
+		}
+
+		// Get newly created children and recursively plan them
+		rows, err := localDB.Query(`
+			SELECT id, parent_id, title, spec, plan, status, is_leaf, depth FROM tasks
+			WHERE parent_id = ? AND status = 'spec_ready'
+			ORDER BY id ASC
+		`, t.ID)
+		if err != nil {
+			return types.Result{
+				Success: false,
+				Message: fmt.Sprintf("하위 작업 조회 실패: %v", err),
+			}
+		}
+		defer rows.Close()
+
+		var children []Task
+		for rows.Next() {
+			var child Task
+			if err := rows.Scan(&child.ID, &child.ParentID, &child.Title, &child.Spec, &child.Plan, &child.Status, &child.IsLeaf, &child.Depth); err != nil {
+				continue
+			}
+			children = append(children, child)
+		}
+
+		// Recursively plan children
+		var childResults []string
+		for _, child := range children {
+			childResult := planRecursive(localDB, projectPath, &child)
+			if childResult.Success {
+				childResults = append(childResults, fmt.Sprintf("✅ #%d %s", child.ID, child.Title))
+			} else {
+				childResults = append(childResults, fmt.Sprintf("❌ #%d %s: %s", child.ID, child.Title, childResult.Message))
+			}
+		}
+
+		msg := fmt.Sprintf("📂 작업 #%d 분할됨: %s\n", t.ID, t.Title)
+		for _, r := range childResults {
+			msg += "  " + r + "\n"
+		}
+
+		return types.Result{
+			Success: true,
+			Message: msg,
+			Data:    t,
+		}
+	}
+
+	// Planned (leaf)
+	_, err = localDB.Exec(`
+		UPDATE tasks SET plan = ?, status = 'plan_ready', is_leaf = 1, updated_at = ? WHERE id = ?
+	`, planResult.Plan, now, t.ID)
 	if err != nil {
 		return types.Result{
 			Success: false,
@@ -121,7 +198,7 @@ func Plan(projectPath, id string) types.Result {
 	return types.Result{
 		Success: true,
 		Message: fmt.Sprintf("📋 작업 #%d Plan 생성 완료: %s\n[조회:task get %d][실행:task run %d]", t.ID, t.Title, t.ID, t.ID),
-		Data:    &t,
+		Data:    t,
 	}
 }
 
@@ -136,11 +213,13 @@ func PlanAll(projectPath string) types.Result {
 	}
 	defer localDB.Close()
 
-	// Get all spec_ready tasks
+	// Get all root spec_ready tasks (no parent or parent is subdivided)
 	rows, err := localDB.Query(`
-		SELECT id, title FROM tasks
-		WHERE status = 'spec_ready'
-		ORDER BY id ASC
+		SELECT id, parent_id, title, spec, plan, status, is_leaf, depth FROM tasks
+		WHERE status = 'spec_ready' AND (parent_id IS NULL OR parent_id IN (
+			SELECT id FROM tasks WHERE status = 'subdivided'
+		))
+		ORDER BY depth ASC, id ASC
 	`)
 	if err != nil {
 		return types.Result{
@@ -153,7 +232,7 @@ func PlanAll(projectPath string) types.Result {
 	var tasks []Task
 	for rows.Next() {
 		var t Task
-		if err := rows.Scan(&t.ID, &t.Title); err != nil {
+		if err := rows.Scan(&t.ID, &t.ParentID, &t.Title, &t.Spec, &t.Plan, &t.Status, &t.IsLeaf, &t.Depth); err != nil {
 			return types.Result{
 				Success: false,
 				Message: fmt.Sprintf("스캔 실패: %v", err),
@@ -169,15 +248,22 @@ func PlanAll(projectPath string) types.Result {
 		}
 	}
 
-	// Plan each task
+	// Plan each task (will recursively handle children)
 	var success, failed int
 	var messages []string
 
 	for _, t := range tasks {
-		result := Plan(projectPath, fmt.Sprintf("%d", t.ID))
+		// Re-check status (might have been planned as child of previous task)
+		var currentStatus string
+		err := localDB.QueryRow(`SELECT status FROM tasks WHERE id = ?`, t.ID).Scan(&currentStatus)
+		if err != nil || currentStatus != "spec_ready" {
+			continue
+		}
+
+		result := planRecursive(localDB, projectPath, &t)
 		if result.Success {
 			success++
-			messages = append(messages, fmt.Sprintf("✅ #%d %s", t.ID, t.Title))
+			messages = append(messages, result.Message)
 		} else {
 			failed++
 			messages = append(messages, fmt.Sprintf("❌ #%d %s: %s", t.ID, t.Title, result.Message))

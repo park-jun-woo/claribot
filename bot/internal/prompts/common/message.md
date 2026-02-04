@@ -10,8 +10,11 @@
 
 ## clari 명령어 사용법
 
+### 공통 옵션
+모든 list 명령어: `-p <page>`, `-n <size>`, `--all` (전체 조회)
+
 ### project (프로젝트 관리)
-- `project list` - 프로젝트 목록 조회
+- `project list [--all]` - 프로젝트 목록 조회
 - `project add <path> [type] [description]` - 기존 경로를 프로젝트로 등록
 - `project create <id> [type] [description]` - 새 프로젝트 생성
 - `project get [id]` - 프로젝트 상세 조회
@@ -20,7 +23,7 @@
 - `project switch none` - 프로젝트 선택 해제 (글로벌 모드)
 
 ### task (작업 관리)
-- `task list [parent_id]` - 작업 목록 조회
+- `task list [parent_id] [--all]` - 작업 목록 조회
 - `task add <title> [--parent <id>]` - 작업 추가
 - `task get <id>` - 작업 상세 조회
 - `task set <id> <field> <value>` - 작업 필드 수정
@@ -32,13 +35,13 @@
 - `task cycle` - 1회차(Plan) + 2회차(실행) 자동 순회
 
 ### edge (Task 의존성)
-- `edge list [task_id]` - 의존성 목록 조회
+- `edge list [task_id] [--all]` - 의존성 목록 조회
 - `edge add <from_id> <to_id>` - 의존성 추가
 - `edge get <from_id> <to_id>` - 의존성 조회
 - `edge delete <from_id> <to_id>` - 의존성 삭제
 
 ### message (메시지)
-- `message list` - 메시지 목록 조회
+- `message list [--all]` - 메시지 목록 조회
 - `message send <content>` - 메시지 전송 (Claude 실행)
 - `message get <id>` - 메시지 상세 조회
 - `message status` - 메시지 처리 상태

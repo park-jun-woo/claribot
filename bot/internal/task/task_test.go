@@ -43,7 +43,7 @@ func TestTaskAdd(t *testing.T) {
 	projectPath, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	result := Add(projectPath, "Test Task", nil)
+	result := Add(projectPath, "Test Task", nil, "Test spec")
 	if !result.Success {
 		t.Errorf("Add failed: %s", result.Message)
 	}
@@ -60,6 +60,10 @@ func TestTaskAdd(t *testing.T) {
 	if task.Status != "spec_ready" {
 		t.Errorf("Expected status 'spec_ready', got '%s'", task.Status)
 	}
+
+	if task.Spec != "Test spec" {
+		t.Errorf("Expected spec 'Test spec', got '%s'", task.Spec)
+	}
 }
 
 func TestTaskAddWithParent(t *testing.T) {
@@ -67,7 +71,7 @@ func TestTaskAddWithParent(t *testing.T) {
 	defer cleanup()
 
 	// Add parent task
-	parentResult := Add(projectPath, "Parent Task", nil)
+	parentResult := Add(projectPath, "Parent Task", nil, "")
 	if !parentResult.Success {
 		t.Fatalf("Add parent failed: %s", parentResult.Message)
 	}
@@ -75,7 +79,7 @@ func TestTaskAddWithParent(t *testing.T) {
 	parent := parentResult.Data.(*Task)
 
 	// Add child task
-	childResult := Add(projectPath, "Child Task", &parent.ID)
+	childResult := Add(projectPath, "Child Task", &parent.ID, "")
 	if !childResult.Success {
 		t.Errorf("Add child failed: %s", childResult.Message)
 	}
@@ -84,6 +88,11 @@ func TestTaskAddWithParent(t *testing.T) {
 	if child.ParentID == nil || *child.ParentID != parent.ID {
 		t.Error("Child task should have parent ID")
 	}
+
+	// Check depth
+	if child.Depth != 1 {
+		t.Errorf("Expected child depth 1, got %d", child.Depth)
+	}
 }
 
 func TestTaskGet(t *testing.T) {
@@ -91,7 +100,7 @@ func TestTaskGet(t *testing.T) {
 	defer cleanup()
 
 	// Add task
-	addResult := Add(projectPath, "Test Task", nil)
+	addResult := Add(projectPath, "Test Task", nil, "")
 	if !addResult.Success {
 		t.Fatalf("Add failed: %s", addResult.Message)
 	}
@@ -115,7 +124,7 @@ func TestTaskSet(t *testing.T) {
 	defer cleanup()
 
 	// Add task
-	Add(projectPath, "Test Task", nil)
+	Add(projectPath, "Test Task", nil, "")
 
 	// Set spec
 	result := Set(projectPath, "1", "spec", "Test specification")
@@ -135,7 +144,7 @@ func TestTaskSetStatus(t *testing.T) {
 	projectPath, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	Add(projectPath, "Test Task", nil)
+	Add(projectPath, "Test Task", nil, "")
 
 	// Set invalid status
 	result := Set(projectPath, "1", "status", "invalid")

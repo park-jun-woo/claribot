@@ -271,8 +271,9 @@ func (r *Router) handleTask(cmd string, args []string) types.Result {
 				Context:    "task add",
 			}
 		}
-		// Parse --parent option
+		// Parse --parent and --spec options
 		var parentID *int
+		var spec string
 		var titleParts []string
 		for i := 0; i < len(args); i++ {
 			if args[i] == "--parent" && i+1 < len(args) {
@@ -281,6 +282,9 @@ func (r *Router) handleTask(cmd string, args []string) types.Result {
 					return types.Result{Success: false, Message: "잘못된 parent ID: " + args[i+1]}
 				}
 				parentID = &pid
+				i++ // skip next arg
+			} else if args[i] == "--spec" && i+1 < len(args) {
+				spec = args[i+1]
 				i++ // skip next arg
 			} else {
 				titleParts = append(titleParts, args[i])
@@ -296,7 +300,7 @@ func (r *Router) handleTask(cmd string, args []string) types.Result {
 				Context:    "task add",
 			}
 		}
-		return task.Add(r.ctx.ProjectPath, title, parentID)
+		return task.Add(r.ctx.ProjectPath, title, parentID, spec)
 	case "list":
 		// task list [parent_id] [-p page] [-n pageSize]
 		var parentID *int
@@ -489,7 +493,7 @@ func (r *Router) handleStatus() types.Result {
 	}
 }
 
-// parsePagination extracts -p (page) and -n (pageSize) from args
+// parsePagination extracts -p (page), -n (pageSize), --all from args
 func (r *Router) parsePagination(args []string) (page, pageSize int) {
 	page = 1
 	pageSize = r.pageSize
@@ -505,6 +509,8 @@ func (r *Router) parsePagination(args []string) (page, pageSize int) {
 				pageSize = n
 			}
 			i++
+		} else if args[i] == "--all" {
+			pageSize = pagination.MaxPageSize
 		}
 	}
 	return

@@ -20,6 +20,9 @@ type PageResponse[T any] struct {
 // DefaultPageSize is the default number of items per page
 const DefaultPageSize = 10
 
+// MaxPageSize is used when --all option is specified
+const MaxPageSize = 10000
+
 // NewPageRequest creates a new PageRequest with defaults
 func NewPageRequest(page, pageSize int) PageRequest {
 	if page < 1 {

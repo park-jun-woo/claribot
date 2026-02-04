@@ -1,10 +1,17 @@
 # clari CLI 사용법
 
+## 공통 옵션
+
+모든 list 명령어에서 사용 가능:
+- `-p <page>` - 페이지 번호
+- `-n <size>` - 페이지 크기
+- `--all` - 전체 조회 (페이징 없음)
+
 ## project (프로젝트 관리)
 
 | 명령어 | 설명 |
 |--------|------|
-| `project list` | 프로젝트 목록 조회 |
+| `project list [--all]` | 프로젝트 목록 조회 |
 | `project add <path> [type] [desc]` | 기존 경로를 프로젝트로 등록 |
 | `project create <id> [type] [desc]` | 새 프로젝트 생성 |
 | `project get [id]` | 프로젝트 상세 조회 |
@@ -16,7 +23,7 @@
 
 | 명령어 | 설명 |
 |--------|------|
-| `task list [parent_id]` | 작업 목록 조회 |
+| `task list [parent_id] [--all]` | 작업 목록 조회 |
 | `task add <title> [--parent <id>] [--spec <spec>]` | 작업 추가 |
 | `task get <id>` | 작업 상세 조회 |
 | `task set <id> <field> <value>` | 작업 필드 수정 |
@@ -31,7 +38,7 @@
 
 | 명령어 | 설명 |
 |--------|------|
-| `edge list [task_id]` | 연결 목록 조회 |
+| `edge list [task_id] [--all]` | 연결 목록 조회 |
 | `edge add <from_id> <to_id>` | 연결 추가 |
 | `edge get <from_id> <to_id>` | 연결 조회 |
 | `edge delete <from_id> <to_id>` | 연결 삭제 |
@@ -40,7 +47,7 @@
 
 | 명령어 | 설명 |
 |--------|------|
-| `message list` | 메시지 목록 조회 |
+| `message list [--all]` | 메시지 목록 조회 |
 | `message send <content>` | 메시지 전송 (Claude 실행) |
 | `message get <id>` | 메시지 상세 조회 |
 | `message status` | 메시지 처리 상태 |

@@ -6,9 +6,9 @@
 
 ## 개요
 
-대규모 작업을 여러 Task로 분할하고, 연관 Task의 컨텍스트를 주입하여 일관성 있는 실행을 보장한다.
+대규모 작업을 재귀적으로 분할하고, 연관 Task의 컨텍스트를 주입하여 일관성 있는 실행을 보장한다.
 
-**핵심 아이디어**: Edge 방향을 무시하고, 순회 단계로 데이터 흐름을 제어한다.
+**핵심 아이디어**: 1회차 순회에서 Claude가 분할/계획을 판단하고, DFS로 leaf까지 순회한다.
 
 ---
 
@@ -17,259 +17,188 @@
 ```go
 Task {
     ID          int
-    ParentID    *int      // 상위 Task (연결의 일종)
+    ParentID    *int      // 상위 Task
     Title       string    // 제목
-    Spec        string    // 요구사항 명세서 (사용자 입력, 불변)
-    Plan        string    // 계획서 (1회차 순회에서 생성)
-    Report      string    // 보고서 (2회차 순회 후 생성)
-    Status      string    // spec_ready → plan_ready → done
+    Spec        string    // 요구사항 명세서 (불변)
+    Plan        string    // 계획서 (leaf만)
+    Report      string    // 완료 보고서 (2회차 순회 후)
+    Status      string    // spec_ready → subdivided/plan_ready → done
+    Error       string
+    IsLeaf      bool      // true: 실행 대상, false: 분할됨
+    Depth       int       // 트리 깊이 (root=0)
     CreatedAt   string
     UpdatedAt   string
 }
 ```
 
-### 필드 설명
-
-| 필드 | 설명 | 생성 시점 |
-|------|------|----------|
-| Title | 작업 제목 | 등록 시 |
-| Spec | 요구사항 명세서 (불변) | 등록 시 |
-| Plan | 실행 계획서 | 1회차 순회 |
-| Report | 완료 보고서 | 2회차 순회 |
-
 ### 상태 전이
 
 ```
-spec_ready → plan_ready → done
-    ↑            ↑          ↑
-  등록 시    1회차 완료  2회차 완료
+spec_ready ─┬─→ subdivided (분할됨, is_leaf=false)
+            │
+            └─→ plan_ready (계획됨, is_leaf=true) → done
 ```
+
+| 상태 | 설명 | is_leaf |
+|------|------|---------|
+| spec_ready | 등록됨, 아직 처리 안됨 | true (기본값) |
+| subdivided | 분할됨, 하위 Task 있음 | false |
+| plan_ready | 계획 완료, 실행 대기 | true |
+| done | 실행 완료 | true |
+| failed | 실패 | - |
 
 ---
 
-## 연결 모델
+## 1회차 순회 (재귀 분할)
 
-### 단순화된 연결
-
-- **Edge**: Task 간 연결 (방향 무시)
-- **Parent-Child**: 상위-하위 관계 (연결의 일종)
+### 흐름
 
 ```
-연결 있음 = Edge 존재 OR ParentID 참조
-
-방향성 → 무시
-관계 타입 → 구분 안 함
+Task A (spec_ready)
+├─ Claude 판단: 분할 필요
+├─ clari task add로 하위 Task B, C 생성
+├─ Task A → subdivided
+├─ 즉시 Task B 순회
+│   └─ Claude 판단: 계획 가능 → plan_ready
+└─ 즉시 Task C 순회
+    ├─ Claude 판단: 분할 필요
+    ├─ Task D, E 생성
+    ├─ Task C → subdivided
+    ├─ Task D 순회 → plan_ready
+    └─ Task E 순회 → plan_ready
 ```
 
-### 연관 Task 조회
+### Claude 판단 기준
+
+**분할 조건** (하나라도 해당):
+- 3개 이상의 독립적 단계
+- 다중 도메인 (UI + API + DB)
+- 변경 파일 5개 초과 예상
+
+**계획 조건** (모두 만족):
+- 단일 목적
+- 변경 파일 5개 이하
+- 독립 실행 가능
+
+### 출력 형식
+
+```
+[SUBDIVIDED]
+- Task #<id>: <title>
+- Task #<id>: <title>
+```
+
+또는
+
+```
+[PLANNED]
+## 구현 방향
+...
+```
+
+### 깊이 제한
+
+`MaxDepth = 5` 도달 시 강제로 계획 작성.
+
+---
+
+## 2회차 순회 (실행)
+
+**대상**: `is_leaf = true AND status = 'plan_ready'`
+
+**순서**: 깊이 깊은 것부터 (depth DESC)
 
 ```sql
--- Edge로 연결된 Task
-SELECT * FROM tasks WHERE id IN (
-    SELECT to_task_id FROM task_edges WHERE from_task_id = ?
-    UNION
-    SELECT from_task_id FROM task_edges WHERE to_task_id = ?
-)
-
--- Parent/Child 관계
-SELECT * FROM tasks WHERE id = ? OR parent_id = ?
+SELECT * FROM tasks
+WHERE is_leaf = 1 AND status = 'plan_ready'
+ORDER BY depth DESC, id ASC
 ```
 
 ---
 
-## 실행 흐름
+## CLI 명령어
 
-### 전체 흐름
+### task add
 
-```
-[등록] → [1회차 순회] → [2회차 순회]
-           (plan)        (execute)
-```
+```bash
+# 기본
+clari task add "제목"
 
-### 상세 흐름
+# 부모 지정
+clari task add "제목" --parent 1
 
-```
-[등록]
-    └─ title + spec 입력
-    └─ status = 'spec_ready'
-
-[1회차 순회 - Plan 생성]
-    └─ 대상: status = 'spec_ready'
-    └─ 입력: 본인 spec + 연관 tasks의 spec
-    └─ 출력: plan
-    └─ 완료: status = 'plan_ready'
-
-[2회차 순회 - 실행]
-    └─ 대상: status = 'plan_ready'
-    └─ 입력: 본인 plan + 연관 tasks의 plan
-    └─ 출력: 코드 실행 + report
-    └─ 완료: status = 'done'
+# Spec 포함 (Claude 분할 시 사용)
+clari task add "제목" --parent 1 --spec "요구사항"
 ```
 
-### 데이터 흐름 다이어그램
+### task plan
 
+```bash
+# 단일 Task (재귀 분할)
+clari task plan [id]
+
+# 전체 spec_ready
+clari task plan --all
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      [등록 단계]                         │
-│  Task A: spec_a    Task B: spec_b    Task C: spec_c    │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────┐
-│                    [1회차 순회]                          │
-│                                                         │
-│  Task A: spec_a + 연관 specs → plan_a                   │
-│  Task B: spec_b + 연관 specs → plan_b                   │
-│  Task C: spec_c + 연관 specs → plan_c                   │
-│                                                         │
-│  (모든 Task의 plan 생성 완료 후 다음 단계)                │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────┐
-│                    [2회차 순회]                          │
-│                                                         │
-│  Task A: plan_a + 연관 plans → 실행 → report_a          │
-│  Task B: plan_b + 연관 plans → 실행 → report_b          │
-│  Task C: plan_c + 연관 plans → 실행 → report_c          │
-└─────────────────────────────────────────────────────────┘
+
+### task run
+
+```bash
+# 단일 leaf Task 실행
+clari task run [id]
+
+# 전체 plan_ready leaf 실행
+clari task run --all
 ```
 
 ---
 
-## 프롬프트 구조
-
-### 1회차 (Plan 생성)
-
-```markdown
-# Task: {title}
-
-## 요구사항
-{spec}
-
-## 연관 자료
-
-### Task #{id}: {title}
-**명세서**: {spec}
-
-### Task #{id}: {title}
-**명세서**: {spec}
-
----
-
-위 요구사항과 연관 자료를 참고하여 실행 계획서를 작성하세요.
-
-계획서에는 다음 내용을 포함하세요:
-- 구현 방향
-- 주요 변경 파일
-- 의존성 또는 주의사항
-```
-
-### 2회차 (실행)
-
-```markdown
-# Task: {title}
-
-## 계획서
-{plan}
-
-## 연관 자료
-
-### Task #{id}: {title}
-**계획서**: {plan}
-
-### Task #{id}: {title}
-**계획서**: {plan}
-
----
-
-위 계획서와 연관 자료를 참고하여 작업을 수행하세요.
-
-완료 후 보고서를 작성하세요:
-- 수행한 작업 요약
-- 변경된 파일 목록
-- 특이사항
-```
-
----
-
-## 핵심 설계 원칙
-
-1. **Edge 방향 무시**: 연결만 있으면 연관 자료에 포함
-2. **순회 단계로 흐름 제어**: 1회차 전체 완료 → 2회차 시작
-3. **Spec 불변**: 원래 요구사항은 수정하지 않음
-4. **단계별 데이터 격리**:
-   - 1회차: spec만 참조
-   - 2회차: plan만 참조
-
----
-
-## DB 스키마 변경
-
-### 기존
+## DB 스키마
 
 ```sql
-tasks (
-    id, parent_id, source, title, content, status, result, error,
-    created_at, started_at, completed_at
-)
-```
-
-### 변경
-
-```sql
-tasks (
-    id INTEGER PRIMARY KEY,
+CREATE TABLE tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id INTEGER,
-    title TEXT,
-    spec TEXT,           -- 요구사항 명세서
-    plan TEXT,           -- 계획서
-    report TEXT,         -- 완료 보고서
-    status TEXT,         -- 'spec_ready', 'plan_ready', 'done', 'failed'
-    error TEXT,
-    created_at TEXT,
-    updated_at TEXT
-)
+    title TEXT NOT NULL,
+    spec TEXT DEFAULT '',
+    plan TEXT DEFAULT '',
+    report TEXT DEFAULT '',
+    status TEXT DEFAULT 'spec_ready'
+        CHECK(status IN ('spec_ready', 'subdivided', 'plan_ready', 'done', 'failed')),
+    error TEXT DEFAULT '',
+    is_leaf INTEGER DEFAULT 1,
+    depth INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (parent_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_tasks_leaf ON tasks(is_leaf);
 ```
 
-### 삭제된 필드
+---
 
-- `source`: 불필요 (Task는 항상 내부 생성)
-- `content`: `spec`으로 대체
-- `result`: `report`로 대체
-- `started_at`, `completed_at`: `updated_at`으로 통합
+## 시스템 프롬프트
+
+1회차 순회 시 Claude에게 주입되는 프롬프트:
+
+`bot/internal/prompts/dev.platform/task.md`
 
 ---
 
 ## 구현 현황
 
-### Phase 1: 스키마 변경 ✅
-- [x] tasks 테이블 마이그레이션 (spec, plan, report 필드)
-- [x] Task 구조체 수정
-- [x] CRUD 함수 수정
+### Phase 1-5: 기존 기능 ✅
 
-### Phase 2: 연관 Task 조회 ✅
-- [x] `GetRelated()` - Edge/Parent/Child 연결된 Task 조회
-- [x] `GetRelatedSpecs()` - 연관 Task의 spec 조회
-- [x] `GetRelatedPlans()` - 연관 Task의 plan 조회
-
-### Phase 3: 1회차 순회 (Plan 생성) ✅
-- [x] `BuildPlanPrompt()` - Plan 생성 프롬프트
-- [x] `Plan()` - 단일 Task Plan 생성
-- [x] `PlanAll()` - 전체 spec_ready Task Plan 생성
-
-### Phase 4: 2회차 순회 (실행) ✅
-- [x] `BuildExecutePrompt()` - 실행 프롬프트
-- [x] `Run()` - 단일 Task 실행
-- [x] `RunAll()` - 전체 plan_ready Task 실행
-- [x] Claude Code 연동
-- [x] Report 저장
-
-### Phase 5: CLI 명령어 ✅
-- [x] `task plan [id]` - 1회차 수동 실행
-- [x] `task plan --all` - 1회차 전체 실행
-- [x] `task run [id]` - 2회차 수동 실행
-- [x] `task run --all` - 2회차 전체 실행
-- [x] `task cycle` - 1회차 + 2회차 자동
+### Phase 6: 재귀 분할 시스템 ✅
+- [x] Task 구조체에 `IsLeaf`, `Depth` 추가
+- [x] DB 스키마에 `is_leaf`, `depth`, `subdivided` 상태 추가
+- [x] `task add --spec` 플래그 추가
+- [x] 1회차 프롬프트 템플릿 (`task.md`)
+- [x] 출력 파서 (`[SUBDIVIDED]`, `[PLANNED]`)
+- [x] `planRecursive()` 재귀 순회
+- [x] 2회차 순회 leaf 조건 추가
 
 ---
 
-*Claribot Task System v0.2*
+*Claribot Task System v0.3*

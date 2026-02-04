@@ -7,8 +7,8 @@ import (
 	"parkjunwoo.com/claribot/internal/types"
 )
 
-// Add adds a new task with optional parent
-func Add(projectPath, title string, parentID *int) types.Result {
+// Add adds a new task with optional parent and spec
+func Add(projectPath, title string, parentID *int, spec string) types.Result {
 	localDB, err := db.OpenLocal(projectPath)
 	if err != nil {
 		return types.Result{
@@ -18,23 +18,25 @@ func Add(projectPath, title string, parentID *int) types.Result {
 	}
 	defer localDB.Close()
 
-	// Validate parent exists if specified
+	// Calculate depth from parent
+	depth := 0
 	if parentID != nil {
-		var exists int
-		err := localDB.QueryRow("SELECT COUNT(*) FROM tasks WHERE id = ?", *parentID).Scan(&exists)
-		if err != nil || exists == 0 {
+		var parentDepth int
+		err := localDB.QueryRow("SELECT depth FROM tasks WHERE id = ?", *parentID).Scan(&parentDepth)
+		if err != nil {
 			return types.Result{
 				Success: false,
 				Message: fmt.Sprintf("부모 작업을 찾을 수 없습니다: #%d", *parentID),
 			}
 		}
+		depth = parentDepth + 1
 	}
 
 	now := db.TimeNow()
 	result, err := localDB.Exec(`
-		INSERT INTO tasks (parent_id, title, status, created_at, updated_at)
-		VALUES (?, ?, 'spec_ready', ?, ?)
-	`, parentID, title, now, now)
+		INSERT INTO tasks (parent_id, title, spec, status, is_leaf, depth, created_at, updated_at)
+		VALUES (?, ?, ?, 'spec_ready', 1, ?, ?, ?)
+	`, parentID, title, spec, depth, now, now)
 	if err != nil {
 		return types.Result{
 			Success: false,
@@ -46,9 +48,8 @@ func Add(projectPath, title string, parentID *int) types.Result {
 
 	msg := fmt.Sprintf("작업 추가됨: #%d %s", id, title)
 	if parentID != nil {
-		msg += fmt.Sprintf(" (부모: #%d)", *parentID)
+		msg += fmt.Sprintf(" (부모: #%d, depth: %d)", *parentID, depth)
 	}
-	msg += fmt.Sprintf("\n[조회:task get %d][삭제:task delete %d]", id, id)
 
 	return types.Result{
 		Success: true,
@@ -57,7 +58,10 @@ func Add(projectPath, title string, parentID *int) types.Result {
 			ID:        int(id),
 			ParentID:  parentID,
 			Title:     title,
+			Spec:      spec,
 			Status:    "spec_ready",
+			IsLeaf:    true,
+			Depth:     depth,
 			CreatedAt: now,
 			UpdatedAt: now,
 		},

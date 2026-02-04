@@ -176,8 +176,10 @@ CREATE TABLE IF NOT EXISTS tasks (
     plan TEXT DEFAULT '',
     report TEXT DEFAULT '',
     status TEXT DEFAULT 'spec_ready'
-        CHECK(status IN ('spec_ready', 'plan_ready', 'done', 'failed')),
+        CHECK(status IN ('spec_ready', 'subdivided', 'plan_ready', 'done', 'failed')),
     error TEXT DEFAULT '',
+    is_leaf INTEGER DEFAULT 1,
+    depth INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (parent_id) REFERENCES tasks(id) ON DELETE CASCADE
@@ -194,8 +196,24 @@ CREATE TABLE IF NOT EXISTS task_edges (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_leaf ON tasks(is_leaf);
 CREATE INDEX IF NOT EXISTS idx_task_edges_to ON task_edges(to_task_id);
 `
 	_, err := db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Run migrations for existing tables
+	migrations := []string{
+		`ALTER TABLE tasks ADD COLUMN is_leaf INTEGER DEFAULT 1`,
+		`ALTER TABLE tasks ADD COLUMN depth INTEGER DEFAULT 0`,
+	}
+
+	for _, migration := range migrations {
+		// Ignore errors (column already exists)
+		db.Exec(migration)
+	}
+
+	return nil
 }

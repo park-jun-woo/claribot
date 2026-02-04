@@ -11,9 +11,9 @@ func TestGetRelated(t *testing.T) {
 	defer cleanup()
 
 	// Add tasks
-	Add(projectPath, "Task 1", nil)
-	Add(projectPath, "Task 2", nil)
-	Add(projectPath, "Task 3", nil)
+	Add(projectPath, "Task 1", nil, "")
+	Add(projectPath, "Task 2", nil, "")
+	Add(projectPath, "Task 3", nil, "")
 
 	// Set specs
 	Set(projectPath, "1", "spec", "Spec 1")
@@ -52,8 +52,8 @@ func TestGetRelatedBidirectional(t *testing.T) {
 	projectPath, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	Add(projectPath, "Task 1", nil)
-	Add(projectPath, "Task 2", nil)
+	Add(projectPath, "Task 1", nil, "")
+	Add(projectPath, "Task 2", nil, "")
 
 	localDB, err := db.OpenLocal(projectPath)
 	if err != nil {
@@ -85,10 +85,10 @@ func TestGetRelatedParentChild(t *testing.T) {
 	defer cleanup()
 
 	// Add parent and child
-	parentResult := Add(projectPath, "Parent", nil)
+	parentResult := Add(projectPath, "Parent", nil, "")
 	parent := parentResult.Data.(*Task)
 
-	Add(projectPath, "Child", &parent.ID)
+	Add(projectPath, "Child", &parent.ID, "")
 
 	localDB, err := db.OpenLocal(projectPath)
 	if err != nil {
@@ -121,9 +121,9 @@ func TestGetRelatedSpecs(t *testing.T) {
 	projectPath, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	Add(projectPath, "Task 1", nil)
-	Add(projectPath, "Task 2", nil)
-	Add(projectPath, "Task 3", nil)
+	Add(projectPath, "Task 1", nil, "")
+	Add(projectPath, "Task 2", nil, "")
+	Add(projectPath, "Task 3", nil, "")
 
 	// Only set spec for task 2
 	Set(projectPath, "2", "spec", "Spec for task 2")
@@ -158,8 +158,8 @@ func TestGetRelatedPlans(t *testing.T) {
 	projectPath, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	Add(projectPath, "Task 1", nil)
-	Add(projectPath, "Task 2", nil)
+	Add(projectPath, "Task 1", nil, "")
+	Add(projectPath, "Task 2", nil, "")
 
 	// Set plan for task 2
 	Set(projectPath, "2", "plan", "Plan for task 2")
