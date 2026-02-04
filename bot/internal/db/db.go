@@ -84,6 +84,8 @@ CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     path TEXT NOT NULL UNIQUE,
+    type TEXT DEFAULT 'dev.platform'
+        CHECK(type IN ('dev.platform', 'dev.cli', 'write.webnovel')),
     description TEXT DEFAULT '',
     status TEXT DEFAULT 'active'
         CHECK(status IN ('active', 'archived')),
@@ -92,6 +94,7 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_projects_type ON projects(type);
 `
 	_, err := db.Exec(schema)
 	return err

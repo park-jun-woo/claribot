@@ -12,8 +12,9 @@ import (
 
 // Context holds the current state for command execution
 type Context struct {
-	ProjectID   string
-	ProjectPath string
+	ProjectID          string
+	ProjectPath        string
+	ProjectDescription string
 }
 
 // Router handles command routing
@@ -29,9 +30,10 @@ func NewRouter() *Router {
 }
 
 // SetProject sets the current project context
-func (r *Router) SetProject(id, path string) {
+func (r *Router) SetProject(id, path, desc string) {
 	r.ctx.ProjectID = id
 	r.ctx.ProjectPath = path
+	r.ctx.ProjectDescription = desc
 }
 
 // GetProject returns the current project
@@ -73,11 +75,36 @@ func (r *Router) Execute(input string) types.Result {
 
 func (r *Router) handleProject(cmd string, args []string) types.Result {
 	switch cmd {
+	case "":
+		return types.Result{
+			Success: true,
+			Message: "project 명령어:\n  [목록:project list]\n  [생성:project create]",
+		}
 	case "create":
 		if len(args) < 1 {
-			return types.Result{Success: false, Message: "usage: project create <id>"}
+			return types.Result{
+				Success:    true,
+				Message:    "프로젝트 ID를 입력하세요:",
+				NeedsInput: true,
+				Prompt:     "ID: ",
+				Context:    "project create",
+			}
 		}
-		return project.Create(args[0])
+		var projType, desc string
+		if len(args) > 1 {
+			projType = args[1]
+		}
+		if len(args) > 2 {
+			desc = strings.Join(args[2:], " ")
+		}
+		result := project.Create(args[0], projType, desc)
+		// Auto-switch to created project
+		if result.Success && !result.NeedsInput {
+			if p, ok := result.Data.(*project.Project); ok {
+				r.SetProject(p.ID, p.Path, p.Description)
+			}
+		}
+		return result
 	case "list":
 		return project.List()
 	case "get":
@@ -93,15 +120,19 @@ func (r *Router) handleProject(cmd string, args []string) types.Result {
 		if len(args) < 1 {
 			return types.Result{Success: false, Message: "usage: project delete <id>"}
 		}
-		return project.Delete(args[0])
+		confirmed := len(args) > 1 && args[1] == "yes"
+		if len(args) > 1 && args[1] == "no" {
+			return types.Result{Success: true, Message: "삭제 취소됨"}
+		}
+		return project.Delete(args[0], confirmed)
 	case "switch":
 		if len(args) < 1 {
-			return types.Result{Success: false, Message: "usage: project switch <id>"}
+			return project.List() // show list with switch buttons
 		}
 		result := project.Switch(args[0])
 		if result.Success {
 			if p, ok := result.Data.(*project.Project); ok {
-				r.SetProject(p.ID, p.Path)
+				r.SetProject(p.ID, p.Path, p.Description)
 			}
 		}
 		return result
@@ -111,8 +142,16 @@ func (r *Router) handleProject(cmd string, args []string) types.Result {
 }
 
 func (r *Router) handleTask(cmd string, args []string) types.Result {
+	// Show help even without project selected
+	if cmd == "" {
+		return types.Result{
+			Success: true,
+			Message: "task 명령어:\n  [목록:task list]\n  [추가:task add]\n  [실행:task run]",
+		}
+	}
+
 	if r.ctx.ProjectPath == "" {
-		return types.Result{Success: false, Message: "no project selected"}
+		return types.Result{Success: false, Message: "프로젝트를 먼저 선택하세요: /project switch <id>"}
 	}
 
 	switch cmd {
@@ -152,8 +191,16 @@ func (r *Router) handleTask(cmd string, args []string) types.Result {
 }
 
 func (r *Router) handleEdge(cmd string, args []string) types.Result {
+	// Show help even without project selected
+	if cmd == "" {
+		return types.Result{
+			Success: true,
+			Message: "edge 명령어:\n  [목록:edge list]\n  [추가:edge add]",
+		}
+	}
+
 	if r.ctx.ProjectPath == "" {
-		return types.Result{Success: false, Message: "no project selected"}
+		return types.Result{Success: false, Message: "프로젝트를 먼저 선택하세요: /project switch <id>"}
 	}
 
 	switch cmd {
@@ -179,8 +226,14 @@ func (r *Router) handleEdge(cmd string, args []string) types.Result {
 }
 
 func (r *Router) handleStatus() types.Result {
+	if r.ctx.ProjectID == "" {
+		return types.Result{
+			Success: true,
+			Message: "선택된 프로젝트 없음\n[선택:project switch]",
+		}
+	}
 	return types.Result{
 		Success: true,
-		Message: fmt.Sprintf("Project: %s\nPath: %s", r.ctx.ProjectID, r.ctx.ProjectPath),
+		Message: fmt.Sprintf("프로젝트: %s\n설명: %s", r.ctx.ProjectID, r.ctx.ProjectDescription),
 	}
 }

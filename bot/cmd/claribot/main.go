@@ -1,24 +1,27 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
+	"parkjunwoo.com/claribot/internal/db"
 	"parkjunwoo.com/claribot/internal/handler"
+	"parkjunwoo.com/claribot/internal/project"
+	"parkjunwoo.com/claribot/internal/tghandler"
 	"parkjunwoo.com/claribot/pkg/claude"
 	"parkjunwoo.com/claribot/pkg/telegram"
 
 	"gopkg.in/yaml.v3"
 )
 
-const Version = "0.2.3"
+const Version = "0.2.8"
 
 // Router for command handling
 var router *handler.Router
@@ -47,6 +50,17 @@ var bot *telegram.Bot
 func main() {
 	cfg := loadConfig()
 
+	// Initialize global DB
+	globalDB, err := db.OpenGlobal()
+	if err != nil {
+		log.Fatalf("Failed to open global DB: %v", err)
+	}
+	if err := globalDB.MigrateGlobal(); err != nil {
+		log.Fatalf("Failed to migrate global DB: %v", err)
+	}
+	globalDB.Close()
+	log.Println("Global DB initialized")
+
 	// Initialize Claude manager
 	claude.Init(claude.Config{
 		Timeout: time.Duration(cfg.Claude.Timeout) * time.Second,
@@ -56,9 +70,10 @@ func main() {
 	// Initialize router
 	router = handler.NewRouter()
 
-	// Log project path
+	// Set project default path
 	if cfg.Project.Path != "" {
-		log.Printf("Project path: %s", cfg.Project.Path)
+		project.SetDefaultPath(cfg.Project.Path)
+		log.Printf("Project path: %s", project.DefaultPath)
 	}
 
 	// Initialize Telegram bot
@@ -69,14 +84,10 @@ func main() {
 			log.Fatalf("Failed to create telegram bot: %v", err)
 		}
 
-		bot.SetHandler(handleTelegramMessage)
-		bot.SetCallbackHandler(handleTelegramCallback)
-
-		// Set menu commands
-		bot.SetCommands([]telegram.Command{
-			{Command: "start", Description: "시작"},
-			{Command: "project", Description: "프로젝트 목록"},
-		})
+		// Setup handler (also registers menu commands)
+		tgHandler := tghandler.New(bot, router)
+		bot.SetHandler(tgHandler.HandleMessage)
+		bot.SetCallbackHandler(tgHandler.HandleCallback)
 
 		if err := bot.Start(); err != nil {
 			log.Fatalf("Failed to start telegram bot: %v", err)
@@ -140,67 +151,21 @@ func loadConfig() Config {
 	return cfg
 }
 
-func handleTelegramMessage(msg telegram.Message) {
-	log.Printf("[Telegram] %s: %s", msg.Username, msg.Text)
-
-	switch msg.Text {
-	case "/start":
-		// Set reply keyboard
-		bot.SetKeyboard(msg.ChatID, "Claribot 시작!", [][]string{
-			{"!project list", "!status"},
-		})
-
-	case "/project":
-		// Send project list with inline buttons
-		bot.SendWithButtons(msg.ChatID, "프로젝트 선택:", [][]telegram.Button{
-			{{Text: "claribot", Data: "switch:claribot"}},
-		})
-
-	default:
-		// Handle ! commands via router
-		if strings.HasPrefix(msg.Text, "!") {
-			cmd := strings.TrimPrefix(msg.Text, "!")
-			result := router.Execute(cmd)
-			bot.Send(msg.ChatID, result.Message)
-			return
-		}
-
-		// Handle message with current project context
-		projectID, _ := router.GetProject()
-		if projectID == "" {
-			bot.Send(msg.ChatID, "프로젝트를 먼저 선택하세요.\n!project switch <id>")
-			return
-		}
-		// Process message for current project
-		bot.Send(msg.ChatID, fmt.Sprintf("[%s] %s", projectID, msg.Text))
-	}
-}
-
-func handleTelegramCallback(cb telegram.Callback) {
-	log.Printf("[Callback] %s: %s", cb.Username, cb.Data)
-
-	// Handle project switch
-	if strings.HasPrefix(cb.Data, "switch:") {
-		projectID := strings.TrimPrefix(cb.Data, "switch:")
-		result := router.Execute("project switch " + projectID)
-		bot.AnswerCallback(cb.ID, projectID+" 선택됨")
-		bot.Send(cb.ChatID, result.Message)
-		return
-	}
-
-	bot.AnswerCallback(cb.ID, "")
-}
-
 func handleRequest(w http.ResponseWriter, r *http.Request) {
 	args := r.URL.Query().Get("args")
 
 	if args == "" {
-		http.Error(w, "missing args parameter", http.StatusBadRequest)
+		http.Error(w, `{"success":false,"message":"missing args parameter"}`, http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("Received: %s", args)
+	log.Printf("[CLI] %s", args)
 
-	// Echo back for now
-	fmt.Fprint(w, args)
+	result := router.Execute(args)
+
+	w.Header().Set("Content-Type", "application/json")
+	if !result.Success {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	json.NewEncoder(w).Encode(result)
 }
