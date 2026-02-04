@@ -1,0 +1,15 @@
+[Unit]
+Description=Claribot - LLM Project Automation Service
+After=network.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__HOME__/.claribot
+ExecStart=/usr/local/bin/claribot
+Restart=on-failure
+RestartSec=5
+Environment=HOME=__HOME__
+
+[Install]
+WantedBy=multi-user.target
