@@ -18,21 +18,35 @@
 
 ```
 {{.ContextMap}}```
-
-## 조회 명령어
-
-- `clari task get <id>` - 특정 Task 상세 조회 (spec, plan, report)
-- `clari task list [parent_id]` - Task 목록 조회
 {{end}}
 
 ---
 
-위 계획서와 연관 자료를 참고하여 작업을 수행하세요.
+## 실행 지침
 
-완료 후 보고서를 작성하세요:
-- 수행한 작업 요약
-- 변경된 파일 목록
-- 특이사항
+1. 계획서의 **구현 순서**를 따라 순차적으로 작업 수행
+2. 계획서의 **변경 파일** 목록을 기준으로 코드 수정
+3. 계획서의 **검증 방법**으로 작업 결과 확인
+4. 완료 후 보고서 작성
+
+### Spec 관리 지침
+- 스펙 문서는 폴더에 md 파일 생성하지 말고 `clari spec add` 명령어로 DB에 등록
+- 기존 스펙 수정은 `clari spec set <id> content <value>` 사용
+
+---
+
+## 보고서 형식
+
+```
+## 요약
+[1-2문장으로 수행한 작업 설명]
+
+## 변경 파일
+- `path/file.go` - [변경 내용]
+
+## 특이사항 (선택)
+- [이슈나 추가 필요 작업]
+```
 
 ## ⚠️ 결과 보고서 파일 저장 (필수)
 
@@ -45,5 +59,23 @@
 - 이 파일이 생성되어야 작업 완료로 인식됩니다
 - 파일이 없으면 작업이 완료되지 않은 것으로 간주합니다
 
+---
+
+## clari 명령어
+
+### task
+- `clari task get <id>` - Task 상세 조회 (spec, plan, report)
+- `clari task list [parent_id]` - Task 목록 조회
+- `clari task set <id> <field> <value>` - Task 필드 수정
+
+### spec
+- `clari spec list` - 스펙 목록 조회
+- `clari spec add <title> --content-file <path>` - 스펙 추가 (파일로)
+- `clari spec get <id>` - 스펙 상세 조회
+- `clari spec set <id> content <value>` - 스펙 수정
+
+---
+
 ## ⛔ 금지 사항
 - `systemctl stop claribot` 실행 금지
+- 폴더에 스펙 md 파일 직접 생성 금지 (clari spec 사용)
