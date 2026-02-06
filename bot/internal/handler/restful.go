@@ -44,6 +44,34 @@ func decodeBody(r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
+// getContextFromRequest returns context based on X-Clari-Cwd header or falls back to global context.
+// If cwd is inside a registered project path, use that project.
+func (r *Router) getContextFromRequest(req *http.Request) *Context {
+	cwd := req.Header.Get("X-Clari-Cwd")
+	if cwd == "" {
+		return r.SnapshotContext()
+	}
+
+	// Find project by cwd
+	projects, err := project.ListAll()
+	if err != nil {
+		return r.SnapshotContext()
+	}
+
+	// Check if cwd starts with any project path
+	for _, p := range projects {
+		if cwd == p.Path || (len(cwd) > len(p.Path) && cwd[:len(p.Path)+1] == p.Path+string(filepath.Separator)) {
+			return &Context{
+				ProjectID:          p.ID,
+				ProjectPath:        p.Path,
+				ProjectDescription: p.Description,
+			}
+		}
+	}
+
+	return r.SnapshotContext()
+}
+
 // parsePage extracts page and page_size from query parameters
 func (r *Router) parsePage(req *http.Request) (int, int) {
 	page := 1
@@ -162,7 +190,7 @@ func (r *Router) HandleDeleteProject(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	result := project.Delete(id, true)
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if result.Success && ctx.ProjectID == id {
 		r.SetProject("", "", "")
 	}
@@ -267,7 +295,7 @@ func (r *Router) HandleSetProject(w http.ResponseWriter, req *http.Request) {
 
 // HandleListTasks handles GET /api/tasks
 func (r *Router) HandleListTasks(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -290,7 +318,7 @@ func (r *Router) HandleListTasks(w http.ResponseWriter, req *http.Request) {
 
 // HandleAddTask handles POST /api/tasks
 func (r *Router) HandleAddTask(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -318,7 +346,7 @@ func (r *Router) HandleAddTask(w http.ResponseWriter, req *http.Request) {
 
 // HandleGetTask handles GET /api/tasks/{id}
 func (r *Router) HandleGetTask(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -333,7 +361,7 @@ func (r *Router) HandleGetTask(w http.ResponseWriter, req *http.Request) {
 
 // HandleUpdateTask handles PATCH /api/tasks/{id}
 func (r *Router) HandleUpdateTask(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -360,7 +388,7 @@ func (r *Router) HandleUpdateTask(w http.ResponseWriter, req *http.Request) {
 
 // HandleDeleteTask handles DELETE /api/tasks/{id}
 func (r *Router) HandleDeleteTask(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -375,7 +403,7 @@ func (r *Router) HandleDeleteTask(w http.ResponseWriter, req *http.Request) {
 
 // HandlePlanTask handles POST /api/tasks/{id}/plan
 func (r *Router) HandlePlanTask(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -386,7 +414,7 @@ func (r *Router) HandlePlanTask(w http.ResponseWriter, req *http.Request) {
 
 // HandleRunTask handles POST /api/tasks/{id}/run
 func (r *Router) HandleRunTask(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -397,7 +425,7 @@ func (r *Router) HandleRunTask(w http.ResponseWriter, req *http.Request) {
 
 // HandlePlanAllTasks handles POST /api/tasks/plan-all
 func (r *Router) HandlePlanAllTasks(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -407,7 +435,7 @@ func (r *Router) HandlePlanAllTasks(w http.ResponseWriter, req *http.Request) {
 
 // HandleRunAllTasks handles POST /api/tasks/run-all
 func (r *Router) HandleRunAllTasks(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -417,7 +445,7 @@ func (r *Router) HandleRunAllTasks(w http.ResponseWriter, req *http.Request) {
 
 // HandleCycleTasks handles POST /api/tasks/cycle
 func (r *Router) HandleCycleTasks(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -435,7 +463,7 @@ func (r *Router) HandleStopTask(w http.ResponseWriter, req *http.Request) {
 
 // HandleListMessages handles GET /api/messages
 func (r *Router) HandleListMessages(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	showAll := req.URL.Query().Get("all") == "true"
 	page, pageSize := r.parsePage(req)
 
@@ -456,7 +484,7 @@ func (r *Router) HandleListMessages(w http.ResponseWriter, req *http.Request) {
 
 // HandleSendMessage handles POST /api/messages
 func (r *Router) HandleSendMessage(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	projectPath := ctx.ProjectPath
 	if projectPath == "" {
 		projectPath = project.DefaultPath
@@ -598,7 +626,7 @@ func (r *Router) HandleSetConfigYaml(w http.ResponseWriter, req *http.Request) {
 
 // HandleListSchedules handles GET /api/schedules
 func (r *Router) HandleListSchedules(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	showAll := req.URL.Query().Get("all") == "true"
 	page, pageSize := r.parsePage(req)
 
@@ -619,7 +647,7 @@ func (r *Router) HandleListSchedules(w http.ResponseWriter, req *http.Request) {
 
 // HandleAddSchedule handles POST /api/schedules
 func (r *Router) HandleAddSchedule(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	var body struct {
 		CronExpr  string  `json:"cron_expr"`
 		Message   string  `json:"message"`
@@ -795,7 +823,7 @@ type CycleStatusJSON struct {
 
 // HandleStatus handles GET /api/status
 func (r *Router) HandleStatus(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	result := r.handleStatus(ctx)
 
 	// Build cycle_status JSON (backward compatibility - first active cycle)
@@ -865,7 +893,7 @@ func (r *Router) HandleStatus(w http.ResponseWriter, req *http.Request) {
 
 // HandleListSpecs handles GET /api/specs
 func (r *Router) HandleListSpecs(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -876,7 +904,7 @@ func (r *Router) HandleListSpecs(w http.ResponseWriter, req *http.Request) {
 
 // HandleAddSpec handles POST /api/specs
 func (r *Router) HandleAddSpec(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -903,7 +931,7 @@ func (r *Router) HandleAddSpec(w http.ResponseWriter, req *http.Request) {
 
 // HandleGetSpec handles GET /api/specs/{id}
 func (r *Router) HandleGetSpec(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -918,7 +946,7 @@ func (r *Router) HandleGetSpec(w http.ResponseWriter, req *http.Request) {
 
 // HandleUpdateSpec handles PATCH /api/specs/{id}
 func (r *Router) HandleUpdateSpec(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
@@ -945,7 +973,7 @@ func (r *Router) HandleUpdateSpec(w http.ResponseWriter, req *http.Request) {
 
 // HandleDeleteSpec handles DELETE /api/specs/{id}
 func (r *Router) HandleDeleteSpec(w http.ResponseWriter, req *http.Request) {
-	ctx := r.SnapshotContext()
+	ctx := r.getContextFromRequest(req)
 	if ctx.ProjectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return

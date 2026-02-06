@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
+	"parkjunwoo.com/claribot/internal/config"
 	"parkjunwoo.com/claribot/internal/db"
 	"parkjunwoo.com/claribot/internal/types"
 )
@@ -93,6 +95,15 @@ func Create(id, description string) types.Result {
 			Message: fmt.Sprintf("failed to migrate local db: %v", err),
 		}
 	}
+
+	// Set default parallel from config
+	cfg, _ := config.Load()
+	defaultParallel := cfg.Project.DefaultParallel
+	now = db.TimeNow()
+	localDB.Exec(
+		"INSERT OR REPLACE INTO config (key, value, updated_at) VALUES (?, ?, ?)",
+		"parallel", strconv.Itoa(defaultParallel), now,
+	)
 
 	return types.Result{
 		Success: true,

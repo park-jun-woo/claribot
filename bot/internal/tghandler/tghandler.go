@@ -56,6 +56,7 @@ var buttonPattern = regexp.MustCompile(`\[([^:\]]+):([^\]]+)\]`)
 // cliOnlyCommands are commands that cannot be used via Telegram
 var cliOnlyCommands = []string{
 	"project add",
+	"usage",
 }
 
 // Handler handles Telegram messages

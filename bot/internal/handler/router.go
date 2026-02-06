@@ -310,13 +310,6 @@ func (r *Router) handleProject(ctx *Context, cmd string, args []string) types.Re
 func (r *Router) projectOverview(ctx *Context) types.Result {
 	var sb strings.Builder
 
-	// Current project indicator
-	if ctx.ProjectID != "" {
-		sb.WriteString(fmt.Sprintf("📌 %s\n", ctx.ProjectID))
-	} else {
-		sb.WriteString("📌 GLOBAL\n")
-	}
-
 	// Action buttons
 	sb.WriteString("[추가:project add] [GLOBAL:project switch none]\n")
 
@@ -326,6 +319,23 @@ func (r *Router) projectOverview(ctx *Context) types.Result {
 		return types.Result{
 			Success: false,
 			Message: fmt.Sprintf("프로젝트 조회 실패: %v", err),
+		}
+	}
+
+	// Task stats for selected project
+	if ctx.ProjectID != "" {
+		for _, p := range projects {
+			if p.ID == ctx.ProjectID {
+				stats, err := task.GetStats(p.Path)
+				if err == nil && stats.Leaf > 0 {
+					sb.WriteString(fmt.Sprintf("📋 Tasks — 전체:%d ✅%d ⏳%d", stats.Leaf, stats.Done, stats.Todo+stats.Planned))
+					if stats.Failed > 0 {
+						sb.WriteString(fmt.Sprintf(" ❌%d", stats.Failed))
+					}
+					sb.WriteString("\n")
+				}
+				break
+			}
 		}
 	}
 
@@ -351,9 +361,15 @@ func (r *Router) projectOverview(ctx *Context) types.Result {
 func (r *Router) handleTask(ctx *Context, cmd string, args []string) types.Result {
 	// Show help even without project selected
 	if cmd == "" {
+		msg := "task 명령어:\n[순회:task cycle][중단:task stop]"
+		if ctx.ProjectPath != "" {
+			if stats, err := task.GetStats(ctx.ProjectPath); err == nil && stats.Leaf > 0 {
+				msg = fmt.Sprintf("📊 전체: %d | 📝todo: %d | 📋planned: %d | ✅done: %d | ❌failed: %d\n\n", stats.Leaf, stats.Todo, stats.Planned, stats.Done, stats.Failed) + msg
+			}
+		}
 		return types.Result{
 			Success: true,
-			Message: "task 명령어:\n[순회:task cycle][중단:task stop]",
+			Message: msg,
 		}
 	}
 
@@ -424,7 +440,11 @@ func (r *Router) handleTask(ctx *Context, cmd string, args []string) types.Resul
 		// Check for --tree flag
 		for _, arg := range args {
 			if arg == "--tree" {
-				return task.ListTree(ctx.ProjectPath)
+				result := task.ListTree(ctx.ProjectPath)
+				if result.Success {
+					result.Message = r.taskStatsHeader(ctx.ProjectPath) + result.Message
+				}
+				return result
 			}
 		}
 		var parentID *int
@@ -445,7 +465,11 @@ func (r *Router) handleTask(ctx *Context, cmd string, args []string) types.Resul
 				break
 			}
 		}
-		return task.List(ctx.ProjectPath, parentID, pagination.NewPageRequest(page, pageSize))
+		result := task.List(ctx.ProjectPath, parentID, pagination.NewPageRequest(page, pageSize))
+		if result.Success && parentID == nil {
+			result.Message = r.taskStatsHeader(ctx.ProjectPath) + result.Message
+		}
+		return result
 	case "get":
 		if len(args) < 1 {
 			return task.List(ctx.ProjectPath, nil, pagination.NewPageRequest(1, r.pageSize)) // show list if no id
@@ -492,6 +516,16 @@ func (r *Router) handleTask(ctx *Context, cmd string, args []string) types.Resul
 	default:
 		return types.Result{Success: false, Message: fmt.Sprintf("unknown task command: %s", cmd)}
 	}
+}
+
+// taskStatsHeader returns a stats header line for task list commands.
+// Returns empty string if stats cannot be retrieved or there are no leaf tasks.
+func (r *Router) taskStatsHeader(projectPath string) string {
+	stats, err := task.GetStats(projectPath)
+	if err != nil || stats.Leaf == 0 {
+		return ""
+	}
+	return fmt.Sprintf("📊 전체: %d | 📝todo: %d | 📋planned: %d | ✅done: %d | ❌failed: %d\n\n", stats.Leaf, stats.Todo, stats.Planned, stats.Done, stats.Failed)
 }
 
 func (r *Router) handleMessage(ctx *Context, cmd string, args []string) types.Result {

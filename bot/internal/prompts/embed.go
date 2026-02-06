@@ -4,21 +4,20 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"path"
 	"strings"
 )
 
-//go:embed common/*.md
-var commonFS embed.FS
+//go:embed *.md
+var promptsFS embed.FS
 
-// Get returns the content of a prompt file from common directory
+// Get returns the content of a prompt file
 func Get(name string) (string, error) {
 	filename := name
 	if !strings.HasSuffix(filename, ".md") {
 		filename += ".md"
 	}
 
-	data, err := commonFS.ReadFile(path.Join("common", filename))
+	data, err := promptsFS.ReadFile(filename)
 	if err != nil {
 		return "", fmt.Errorf("read prompt %s: %w", name, err)
 	}
@@ -26,16 +25,15 @@ func Get(name string) (string, error) {
 	return string(data), nil
 }
 
-// List returns all prompt names in common directory
+// List returns all prompt names
 func List() ([]string, error) {
 	var names []string
-	err := fs.WalkDir(commonFS, "common", func(p string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(promptsFS, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if !d.IsDir() && strings.HasSuffix(p, ".md") {
-			name := strings.TrimPrefix(p, "common/")
-			name = strings.TrimSuffix(name, ".md")
+			name := strings.TrimSuffix(p, ".md")
 			names = append(names, name)
 		}
 		return nil

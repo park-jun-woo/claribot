@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
-  useTasks, useTask, useAddTask, useDeleteTask, useTaskPlan, useTaskRun, useTaskCycle, useTaskStop, useSetTask, useStatus
+  useTasks, useTask, useAddTask, useDeleteTask, useTaskCycle, useTaskStop, useSetTask, useStatus
 } from '@/hooks/useClaribot'
 import type { StatusResponse } from '@/types'
 import {
@@ -35,8 +35,6 @@ export default function Tasks() {
   const { data: tasksData } = useTasks()
   const addTask = useAddTask()
   const deleteTask = useDeleteTask()
-  const taskPlan = useTaskPlan()
-  const taskRun = useTaskRun()
   const taskCycle = useTaskCycle()
   const taskStop = useTaskStop()
   const setTask = useSetTask()
@@ -133,22 +131,6 @@ export default function Tasks() {
 
           {/* Actions */}
           <div className="flex gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => taskPlan.mutate(selectedTask.id || selectedTask.ID)}
-              disabled={taskPlan.isPending}
-            >
-              <Play className="h-4 w-4 mr-1" /> Plan
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => taskRun.mutate(selectedTask.id || selectedTask.ID)}
-              disabled={taskRun.isPending}
-            >
-              <Play className="h-4 w-4 mr-1" /> Run
-            </Button>
             <Button
               size="sm"
               variant="destructive"
@@ -304,6 +286,7 @@ export default function Tasks() {
             items={taskItems}
             statusFilter={statusFilter}
             onFilterChange={setStatusFilter}
+            currentProject={currentProject}
           />
         )}
 
@@ -512,13 +495,15 @@ function TreeView({
   )
 }
 
-function TaskStatusBar({ items, statusFilter, onFilterChange }: {
+function TaskStatusBar({ items, statusFilter, onFilterChange, currentProject }: {
   items: any[]
   statusFilter: string | null
   onFilterChange: (status: string | null) => void
+  currentProject: string
 }) {
   const { data: status } = useStatus() as { data: StatusResponse | undefined }
-  const cycleStatus = status?.cycle_status
+  // Only show cycle status if it matches current project
+  const cycleStatus = status?.cycle_status?.project_id === currentProject ? status.cycle_status : undefined
 
   const statuses = ['todo', 'split', 'planned', 'done', 'failed'] as const
   const colors: Record<string, string> = {

@@ -139,6 +139,12 @@ func (b *Bot) SetCallbackHandler(h CallbackHandler) {
 
 // SetCommands sets the bot menu commands
 func (b *Bot) SetCommands(commands []Command) error {
+	// Delete existing commands first to clear cached entries
+	del := tgbotapi.NewDeleteMyCommands()
+	if _, err := b.api.Request(del); err != nil {
+		log.Printf("[Telegram] deleteMyCommands failed: %v", err)
+	}
+
 	cmds := make([]tgbotapi.BotCommand, len(commands))
 	for i, c := range commands {
 		cmds[i] = tgbotapi.BotCommand{

@@ -1,6 +1,7 @@
 package message
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -11,11 +12,11 @@ import (
 
 // BuildContextMap builds a context map text combining recent messages and task tree.
 // Returns empty string on failure to avoid disrupting message processing.
-func BuildContextMap(globalDB *db.DB, projectPath string, projectID *string) string {
+func BuildContextMap(globalDB *db.DB, projectPath string, projectID *string, contextMax int) string {
 	var sb strings.Builder
 
-	// Section 1: Recent messages from global DB
-	msgSection := buildMessageSection(globalDB)
+	// Section 1: Recent messages (reports only) from project or global
+	msgSection := buildMessageSection(globalDB, projectID, contextMax)
 	if msgSection != "" {
 		sb.WriteString("## 최근 대화 이력\n\n")
 		sb.WriteString(msgSection)
@@ -43,14 +44,31 @@ func BuildContextMap(globalDB *db.DB, projectPath string, projectID *string) str
 	return result.String()
 }
 
-// buildMessageSection queries recent 10 messages and formats them as a summary.
-func buildMessageSection(globalDB *db.DB) string {
-	rows, err := globalDB.Query(`
-		SELECT id, content, COALESCE(result, ''), status, created_at
-		FROM messages
-		ORDER BY id DESC
-		LIMIT 10
-	`)
+// buildMessageSection queries recent done messages (with reports) from project or global.
+func buildMessageSection(globalDB *db.DB, projectID *string, contextMax int) string {
+	var rows *sql.Rows
+	var err error
+
+	if projectID != nil && *projectID != "" {
+		// Filter by project
+		rows, err = globalDB.Query(`
+			SELECT id, content, COALESCE(result, '')
+			FROM messages
+			WHERE project_id = ? AND status = 'done' AND result != ''
+			ORDER BY id DESC
+			LIMIT ?
+		`, *projectID, contextMax)
+	} else {
+		// Global (all projects)
+		rows, err = globalDB.Query(`
+			SELECT id, content, COALESCE(result, '')
+			FROM messages
+			WHERE status = 'done' AND result != ''
+			ORDER BY id DESC
+			LIMIT ?
+		`, contextMax)
+	}
+
 	if err != nil {
 		return ""
 	}
@@ -60,19 +78,18 @@ func buildMessageSection(globalDB *db.DB) string {
 	count := 0
 	for rows.Next() {
 		var id int
-		var content, result, status, createdAt string
-		if err := rows.Scan(&id, &content, &result, &status, &createdAt); err != nil {
+		var content, result string
+		if err := rows.Scan(&id, &content, &result); err != nil {
 			continue
 		}
 
-		contentFirst := firstLine(content, 50)
-		resultFirst := firstLine(result, 50)
+		contentFirst := firstLine(content, 60)
+		// Show more of the report (first 200 chars)
+		reportSummary := truncateText(result, 200)
 
-		sb.WriteString(fmt.Sprintf("- #%d [%s] %s", id, status, contentFirst))
-		if resultFirst != "" {
-			sb.WriteString(fmt.Sprintf(" → %s", resultFirst))
-		}
-		sb.WriteString("\n")
+		sb.WriteString(fmt.Sprintf("### #%d: %s\n", id, contentFirst))
+		sb.WriteString(reportSummary)
+		sb.WriteString("\n\n")
 		count++
 	}
 
@@ -158,4 +175,19 @@ func firstLine(s string, maxRunes int) string {
 		s = string([]rune(s)[:maxRunes]) + "..."
 	}
 	return s
+}
+
+// truncateText truncates text to maxRunes, preserving word boundaries where possible.
+func truncateText(s string, maxRunes int) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+
+	return string(runes[:maxRunes]) + "..."
 }

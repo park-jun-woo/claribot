@@ -77,5 +77,6 @@
 ---
 
 ## ⛔ 금지 사항
-- `systemctl stop claribot` 실행 금지
+- **배포/재시작 금지**: `systemctl`, `make build`, 배포 스크립트 실행 금지
+- 코드 수정만 하고, 배포는 사용자가 직접 수행
 - 폴더에 스펙 md 파일 직접 생성 금지 (clari spec 사용)

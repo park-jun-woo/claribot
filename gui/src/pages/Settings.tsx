@@ -22,10 +22,11 @@ interface ConfigData {
     timeout: number
     max_timeout: number
     max: number
+    context_max: number
   }
   project: {
     path: string
-    message_action: string
+    default_parallel: number
   }
   pagination: {
     page_size: number
@@ -39,8 +40,8 @@ interface ConfigData {
 const defaultConfig: ConfigData = {
   service: { host: '127.0.0.1', port: 9847 },
   telegram: { token: '', allowed_users: [], admin_chat_id: 0 },
-  claude: { timeout: 1200, max_timeout: 1800, max: 10 },
-  project: { path: '', message_action: 'task|act' },
+  claude: { timeout: 1200, max_timeout: 1800, max: 10, context_max: 5 },
+  project: { path: '', default_parallel: 3 },
   pagination: { page_size: 10 },
   log: { level: 'info', file: '' },
 }
@@ -114,15 +115,14 @@ export default function Settings() {
       if (config.claude.timeout !== defaultConfig.claude.timeout) (cleanConfig.claude as Record<string, unknown>).timeout = config.claude.timeout
       if (config.claude.max_timeout !== defaultConfig.claude.max_timeout) (cleanConfig.claude as Record<string, unknown>).max_timeout = config.claude.max_timeout
       if (config.claude.max !== defaultConfig.claude.max) (cleanConfig.claude as Record<string, unknown>).max = config.claude.max
+      if (config.claude.context_max !== defaultConfig.claude.context_max) (cleanConfig.claude as Record<string, unknown>).context_max = config.claude.context_max
       if (Object.keys(cleanConfig.claude as object).length === 0) delete cleanConfig.claude
 
       // Project
-      if (config.project.path || config.project.message_action !== defaultConfig.project.message_action) {
+      if (config.project.path || config.project.default_parallel !== defaultConfig.project.default_parallel) {
         cleanConfig.project = {}
         if (config.project.path) (cleanConfig.project as Record<string, unknown>).path = config.project.path
-        if (config.project.message_action !== defaultConfig.project.message_action) {
-          (cleanConfig.project as Record<string, unknown>).message_action = config.project.message_action
-        }
+        if (config.project.default_parallel !== defaultConfig.project.default_parallel) (cleanConfig.project as Record<string, unknown>).default_parallel = config.project.default_parallel
       }
 
       // Pagination
@@ -283,6 +283,15 @@ export default function Settings() {
                     onChange={e => updateConfig('claude', 'max_timeout', parseInt(e.target.value) || 60)}
                   />
                 </ConfigField>
+                <ConfigField label="Context Max" hint="1-20, default: 5">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={config.claude.context_max}
+                    onChange={e => updateConfig('claude', 'context_max', parseInt(e.target.value) || 5)}
+                  />
+                </ConfigField>
               </ConfigSection>
 
               {/* Project Section */}
@@ -294,45 +303,14 @@ export default function Settings() {
                     placeholder="/home/user/projects"
                   />
                 </ConfigField>
-                <ConfigField label="Message Action" hint="how to handle message requests">
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="message_action"
-                        value="task"
-                        checked={config.project.message_action === 'task'}
-                        onChange={e => updateConfig('project', 'message_action', e.target.value)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm">TaskOnly</span>
-                      <span className="text-xs text-muted-foreground">- Task 등록만, 직접 실행 안 함</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="message_action"
-                        value="act"
-                        checked={config.project.message_action === 'act'}
-                        onChange={e => updateConfig('project', 'message_action', e.target.value)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm">ActionOnly</span>
-                      <span className="text-xs text-muted-foreground">- 직접 실행만, Task 등록 안 함</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="message_action"
-                        value="task|act"
-                        checked={config.project.message_action === 'task|act'}
-                        onChange={e => updateConfig('project', 'message_action', e.target.value)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm">Task&Action</span>
-                      <span className="text-xs text-muted-foreground">- 상황에 따라 Task 등록 또는 직접 실행</span>
-                    </label>
-                  </div>
+                <ConfigField label="Default Parallel" hint="1-10, default: 3">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={config.project.default_parallel}
+                    onChange={e => updateConfig('project', 'default_parallel', parseInt(e.target.value) || 3)}
+                  />
                 </ConfigField>
               </ConfigSection>
 

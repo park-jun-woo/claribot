@@ -664,6 +664,45 @@ func stripANSI(s string) string {
 	return s
 }
 
+// RunPrintOnly executes Claude Code in print-only mode (no tools, no file access)
+// Used for TaskOnly mode where Claude should only generate text output
+func RunPrintOnly(prompt string, workDir string) (string, error) {
+	args := []string{"--print", prompt}
+
+	cmd := exec.Command("claude", args...)
+	if workDir != "" {
+		cmd.Dir = workDir
+	}
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Set a reasonable timeout (2 minutes for spec generation)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to start claude: %w", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			return "", fmt.Errorf("claude error: %s", stderr.String())
+		}
+		return stdout.String(), nil
+	case <-ctx.Done():
+		syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		return "", fmt.Errorf("timeout waiting for claude")
+	}
+}
+
 // buildArgs constructs command line arguments for print mode
 func buildArgs(opts Options) []string {
 	args := []string{"-p", "--dangerously-skip-permissions"} // print mode, skip permission prompts

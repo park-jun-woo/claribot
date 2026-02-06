@@ -146,7 +146,7 @@ clari task add "Settings 다크모드 토글 추가" --parent {{.TaskID}} --spec
 - **범위 확장 금지**: Spec 외 작업 추가 금지
 - **무한 분할 금지**: leaf 단위까지만 분할
 - **코드블록 래핑 금지**: 출력을 ```로 감싸지 마세요
-- **서비스 중단 금지**: `systemctl stop claribot` 실행 금지
+- **배포/재시작 금지**: `systemctl`, `make build`, 배포 스크립트를 Plan에 포함하지 마세요. 코드 수정만 계획하고, 배포는 사용자가 직접 수행
 
 ---
 

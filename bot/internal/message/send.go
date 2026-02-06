@@ -71,22 +71,21 @@ func SendWithProject(projectID *string, projectPath, content, source string) typ
 		}
 	}
 
-	// Build context map (best-effort, empty string on failure)
-	contextMap := BuildContextMap(globalDB, projectPath, projectID)
-
-	// Load config for message_action
+	// Load config for contextMax
 	cfg, _ := config.Load()
-	messageAction := cfg.Project.MessageAction
+	contextMax := cfg.Claude.ContextMax
 
-	// Get system prompt template and render with ReportPath, ContextMap, MessageAction
+	// Build context map (best-effort, empty string on failure)
+	contextMap := BuildContextMap(globalDB, projectPath, projectID, contextMax)
+
+	// Get system prompt template
 	systemPrompt, err := prompts.Get("message")
 	if err != nil {
 		systemPrompt = defaultSystemPrompt()
 	}
 	systemPrompt = renderPrompt(systemPrompt, map[string]string{
-		"ReportPath":    reportPath,
-		"ContextMap":    contextMap,
-		"MessageAction": messageAction,
+		"ReportPath": reportPath,
+		"ContextMap": contextMap,
 	})
 
 	// Execute Claude Code
@@ -162,14 +161,12 @@ func renderPrompt(tmplStr string, data map[string]string) string {
 
 	// Convert map to struct-like data
 	type PromptData struct {
-		ReportPath    string
-		ContextMap    string
-		MessageAction string
+		ReportPath string
+		ContextMap string
 	}
 	d := PromptData{
-		ReportPath:    data["ReportPath"],
-		ContextMap:    data["ContextMap"],
-		MessageAction: data["MessageAction"],
+		ReportPath: data["ReportPath"],
+		ContextMap: data["ContextMap"],
 	}
 
 	var buf bytes.Buffer

@@ -42,6 +42,7 @@ claribot/
 - [docs/Task.md](docs/Task.md) - Task 시스템 설계 (분할 정복, 순회 로직)
 - [docs/Schedule.md](docs/Schedule.md) - Schedule 시스템 설계 (cron 기반 자동 실행)
 - [docs/webui.md](docs/webui.md) - Web UI 기획 및 구현 현황
+- [docs/MobileApp.md](docs/MobileApp.md) - 모바일 앱 기획 문서
 
 > 한글 버전은 [docs/kr/](docs/kr/) 디렉토리를 참고하세요.
 

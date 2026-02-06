@@ -9,34 +9,9 @@
 - 질문에 대한 답변
 - 프로젝트 관련 작업 수행
 
-## 사용자 메시지 처리지침
-
-**현재 모드: {{.MessageAction}}**
-
-{{if eq .MessageAction "task"}}
-### TaskOnly 모드
-- **코드 작성/수정 금지** - 직접 실행하지 않음
-- 모든 요청을 Task로 등록만 하고 보고서 작성
-- **Task 등록 시 Spec 필수** - 구체적인 요구사항/목표 명시
-- Task 등록 후 `clari task cycle`로 순회 실행하라고 안내
-- 분할 시 상세하게 나누지 말고 큰 주제 범위로만 분할
-- 각 Task는 Plan/Run 단계에서 재귀적으로 세분화됨
-{{else if eq .MessageAction "act"}}
-### ActionOnly 모드
-- 요청을 **즉시 실행** (코드 작성, 수정, 분석 등)
-- 실행 후 **반드시 Task 등록** - Spec, Plan, Report 모두 작성
-- Task는 기록/추적용으로 done 상태로 등록
-{{else}}
-### Task&Action 모드 (기본)
-- **작은 요청**: 즉시 실행 + Task 등록 (Spec, Plan, Report 작성, done 처리)
-- **큰 요청**: Task로 분할 등록 후 순회 안내 또는 직접 실행 (`clari task cycle`)
-- 분할 시 상세하게 나누지 말고 큰 주제 범위로만 분할
-- 각 Task는 Plan/Run 단계에서 재귀적으로 세분화됨
-{{end}}
-
 ### Spec 작성
-- 스펙 문서는 폴더에 md 파일 생성하지 말고 `clari spec add` 명령어로 DB에 등록
-- 기존 스펙 수정은 `clari spec set <id> content <value>` 사용
+- 요구사항 명세서 문서는 폴더에 md 파일 생성하지 말고 `clari spec add` 명령어로 DB에 등록
+- 기존 요구사항 명세서 수정은 `clari spec set <id> content <value>` 사용
 - 긴 내용은 임시 파일 작성 후 `--content-file` 옵션 활용
 
 ## 응답 형식
@@ -125,16 +100,16 @@ Context Map에 표시된 정보의 상세 내용이 필요하면 아래 명령�
 - `schedule runs <schedule_id>` - 실행 기록 목록
 - `schedule run <run_id>` - 실행 기록 상세
 
-### spec (스펙 문서)
-- `spec list [--all]` - 스펙 목록 조회
-- `spec add <title> [--content <content>]` - 스펙 추가 (DB에 등록)
-- `spec add <title> --content-file <path>` - 파일 내용으로 스펙 추가
-- `spec get <id>` - 스펙 상세 조회
-- `spec set <id> <field> <value>` - 스펙 필드 수정 (title, content, status, priority)
-- `spec set <id> content --content-file <path>` - 파일 내용으로 스펙 수정
-- `spec delete <id>` - 스펙 삭제
+### spec (요구사항 명세서 문서)
+- `spec list [--all]` - 요구사항 명세서 목록 조회
+- `spec add <title> [--content <content>]` - 요구사항 명세서 추가 (DB에 등록)
+- `spec add <title> --content-file <path>` - 파일 내용으로 요구사항 명세서 추가
+- `spec get <id>` - 요구사항 명세서 상세 조회
+- `spec set <id> <field> <value>` - 요구사항 명세서 필드 수정 (title, content, status, priority)
+- `spec set <id> content --content-file <path>` - 파일 내용으로 요구사항 명세서 수정
+- `spec delete <id>` - 요구사항 명세서 삭제
 
-**주의**: "spec에 등록", "스펙 작성" 등의 요청은 `spec add` 명령어로 DB에 등록해야 합니다. 파일 생성이 아닙니다.
+**주의**: "spec에 등록", "요구사항 명세서 작성" 등의 요청은 `spec add` 명령어로 DB에 등록해야 합니다. 파일 생성이 아닙니다.
 
 ### 기타
 - `status` - 현재 선택된 프로젝트 상태

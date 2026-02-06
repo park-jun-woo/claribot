@@ -36,12 +36,13 @@ type ClaudeConfig struct {
 	Timeout    int `yaml:"timeout"`     // idle timeout seconds, default: 1200 (20 min)
 	MaxTimeout int `yaml:"max_timeout"` // absolute timeout seconds, default: 1800 (30 min)
 	Max        int `yaml:"max"`         // max concurrent, default: 3
+	ContextMax int `yaml:"context_max"` // max recent messages in context, default: 5
 }
 
 // ProjectConfig for project management
 type ProjectConfig struct {
-	Path          string `yaml:"path"`           // default project creation path
-	MessageAction string `yaml:"message_action"` // task, act, task|act (default: task|act)
+	Path            string `yaml:"path"`             // default project creation path
+	DefaultParallel int    `yaml:"default_parallel"` // default parallel count for new projects, default: 3
 }
 
 // PaginationConfig for list pagination
@@ -57,14 +58,15 @@ type LogConfig struct {
 
 // Defaults
 const (
-	DefaultHost          = "127.0.0.1"
-	DefaultPort          = 9847
-	DefaultTimeout       = 1200 // 20 minutes
-	DefaultMaxTimeout    = 1800 // 30 minutes
-	DefaultMaxClaude     = 10
-	DefaultPageSize      = 10
-	DefaultLogLevel      = "info"
-	DefaultMessageAction = "task|act" // task, act, task|act
+	DefaultHost       = "127.0.0.1"
+	DefaultPort       = 9847
+	DefaultTimeout    = 1200 // 20 minutes
+	DefaultMaxTimeout = 1800 // 30 minutes
+	DefaultMaxClaude  = 10
+	DefaultContextMax     = 5
+	DefaultParallelCount  = 3
+	DefaultPageSize       = 10
+	DefaultLogLevel   = "info"
 )
 
 // Load loads config from ~/.claribot/config.yaml
@@ -102,7 +104,8 @@ func (c *Config) setDefaults() {
 	c.Claude.Timeout = DefaultTimeout
 	c.Claude.MaxTimeout = DefaultMaxTimeout
 	c.Claude.Max = DefaultMaxClaude
-	c.Project.MessageAction = DefaultMessageAction
+	c.Claude.ContextMax = DefaultContextMax
+	c.Project.DefaultParallel = DefaultParallelCount
 	c.Pagination.PageSize = DefaultPageSize
 	c.Log.Level = DefaultLogLevel
 }
@@ -123,8 +126,11 @@ func (c *Config) applyDefaults() {
 	if c.Claude.Max == 0 {
 		c.Claude.Max = DefaultMaxClaude
 	}
-	if c.Project.MessageAction == "" {
-		c.Project.MessageAction = DefaultMessageAction
+	if c.Claude.ContextMax == 0 {
+		c.Claude.ContextMax = DefaultContextMax
+	}
+	if c.Project.DefaultParallel == 0 {
+		c.Project.DefaultParallel = DefaultParallelCount
 	}
 	if c.Pagination.PageSize == 0 {
 		c.Pagination.PageSize = DefaultPageSize
@@ -167,11 +173,24 @@ func (c *Config) Validate() []string {
 		c.Claude.Max = 10
 	}
 
-	// Validate message_action
-	validActions := map[string]bool{"task": true, "act": true, "task|act": true}
-	if !validActions[c.Project.MessageAction] {
-		warnings = append(warnings, fmt.Sprintf("invalid message_action '%s', using default '%s'", c.Project.MessageAction, DefaultMessageAction))
-		c.Project.MessageAction = DefaultMessageAction
+	if c.Claude.ContextMax < 1 {
+		warnings = append(warnings, fmt.Sprintf("context_max %d invalid, using default %d", c.Claude.ContextMax, DefaultContextMax))
+		c.Claude.ContextMax = DefaultContextMax
+	}
+
+	if c.Claude.ContextMax > 20 {
+		warnings = append(warnings, fmt.Sprintf("context_max %d too high, using 20", c.Claude.ContextMax))
+		c.Claude.ContextMax = 20
+	}
+
+	if c.Project.DefaultParallel < 1 {
+		warnings = append(warnings, fmt.Sprintf("default_parallel %d invalid, using default %d", c.Project.DefaultParallel, DefaultParallelCount))
+		c.Project.DefaultParallel = DefaultParallelCount
+	}
+
+	if c.Project.DefaultParallel > 10 {
+		warnings = append(warnings, fmt.Sprintf("default_parallel %d too high, using 10", c.Project.DefaultParallel))
+		c.Project.DefaultParallel = 10
 	}
 
 	if c.Pagination.PageSize < 1 {
