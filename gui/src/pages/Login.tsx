@@ -1,15 +1,28 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useLogin } from '@/hooks/useAuth'
-import { LogIn } from 'lucide-react'
+import { useLogin, useAuthStatus } from '@/hooks/useAuth'
+import { LogIn, Loader2 } from 'lucide-react'
 
 export default function Login() {
+  const navigate = useNavigate()
+  const { data: auth, isLoading } = useAuthStatus()
   const [password, setPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')
   const [error, setError] = useState('')
   const login = useLogin()
+
+  // Already authenticated, redirect to home
+  if (!isLoading && auth?.is_authenticated) {
+    navigate('/', { replace: true })
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   const handleLogin = async () => {
     setError('')
@@ -26,6 +39,7 @@ export default function Login() {
     login.mutate(
       { password, totpCode },
       {
+        onSuccess: () => navigate('/', { replace: true }),
         onError: (e: Error) => setError(e.message || '로그인에 실패했습니다'),
       }
     )

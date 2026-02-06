@@ -456,7 +456,11 @@ export default function Projects() {
                     variant="outline"
                     size="sm"
                     className="flex-1 h-8 text-xs"
-                    onClick={() => navigate(`/projects/${p.id}/edit`)}
+                    onClick={() => {
+                      switchProject.mutate(p.id, {
+                        onSuccess: () => navigate(`/projects/${p.id}/edit`),
+                      })
+                    }}
                   >
                     <Pencil className="h-3 w-3 mr-1" />
                     Edit

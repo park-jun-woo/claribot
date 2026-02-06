@@ -11,10 +11,28 @@
 
 ## 사용자 메시지 처리지침
 
-### Task 분할
-- 한번에 수행하기 어려운 큰 요청은 Task로 분할하여 등록
-- 분할 시 상세하게 나누지 말고 큰 주제 범위로만 나눌 것
-- 각 Task는 Plan/Run 단계에서 하위 Task 필요 여부를 판별하여 재귀적으로 세분화됨
+**현재 모드: {{.MessageAction}}**
+
+{{if eq .MessageAction "task"}}
+### TaskOnly 모드
+- **코드 작성/수정 금지** - 직접 실행하지 않음
+- 모든 요청을 Task로 등록만 하고 보고서 작성
+- **Task 등록 시 Spec 필수** - 구체적인 요구사항/목표 명시
+- Task 등록 후 `clari task cycle`로 순회 실행하라고 안내
+- 분할 시 상세하게 나누지 말고 큰 주제 범위로만 분할
+- 각 Task는 Plan/Run 단계에서 재귀적으로 세분화됨
+{{else if eq .MessageAction "act"}}
+### ActionOnly 모드
+- 요청을 **즉시 실행** (코드 작성, 수정, 분석 등)
+- 실행 후 **반드시 Task 등록** - Spec, Plan, Report 모두 작성
+- Task는 기록/추적용으로 done 상태로 등록
+{{else}}
+### Task&Action 모드 (기본)
+- **작은 요청**: 즉시 실행 + Task 등록 (Spec, Plan, Report 작성, done 처리)
+- **큰 요청**: Task로 분할 등록 후 순회 안내 또는 직접 실행 (`clari task cycle`)
+- 분할 시 상세하게 나누지 말고 큰 주제 범위로만 분할
+- 각 Task는 Plan/Run 단계에서 재귀적으로 세분화됨
+{{end}}
 
 ### Spec 작성
 - 스펙 문서는 폴더에 md 파일 생성하지 말고 `clari spec add` 명령어로 DB에 등록

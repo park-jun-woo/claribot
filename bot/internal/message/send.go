@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"parkjunwoo.com/claribot/internal/config"
 	"parkjunwoo.com/claribot/internal/db"
 	"parkjunwoo.com/claribot/internal/prompts"
 	"parkjunwoo.com/claribot/internal/types"
@@ -73,14 +74,19 @@ func SendWithProject(projectID *string, projectPath, content, source string) typ
 	// Build context map (best-effort, empty string on failure)
 	contextMap := BuildContextMap(globalDB, projectPath, projectID)
 
-	// Get system prompt template and render with ReportPath and ContextMap
+	// Load config for message_action
+	cfg, _ := config.Load()
+	messageAction := cfg.Project.MessageAction
+
+	// Get system prompt template and render with ReportPath, ContextMap, MessageAction
 	systemPrompt, err := prompts.Get("message")
 	if err != nil {
 		systemPrompt = defaultSystemPrompt()
 	}
 	systemPrompt = renderPrompt(systemPrompt, map[string]string{
-		"ReportPath": reportPath,
-		"ContextMap": contextMap,
+		"ReportPath":    reportPath,
+		"ContextMap":    contextMap,
+		"MessageAction": messageAction,
 	})
 
 	// Execute Claude Code
@@ -156,12 +162,14 @@ func renderPrompt(tmplStr string, data map[string]string) string {
 
 	// Convert map to struct-like data
 	type PromptData struct {
-		ReportPath string
-		ContextMap string
+		ReportPath    string
+		ContextMap    string
+		MessageAction string
 	}
 	d := PromptData{
-		ReportPath: data["ReportPath"],
-		ContextMap: data["ContextMap"],
+		ReportPath:    data["ReportPath"],
+		ContextMap:    data["ContextMap"],
+		MessageAction: data["MessageAction"],
 	}
 
 	var buf bytes.Buffer

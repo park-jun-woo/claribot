@@ -25,6 +25,7 @@ interface ConfigData {
   }
   project: {
     path: string
+    message_action: string
   }
   pagination: {
     page_size: number
@@ -39,7 +40,7 @@ const defaultConfig: ConfigData = {
   service: { host: '127.0.0.1', port: 9847 },
   telegram: { token: '', allowed_users: [], admin_chat_id: 0 },
   claude: { timeout: 1200, max_timeout: 1800, max: 10 },
-  project: { path: '' },
+  project: { path: '', message_action: 'task|act' },
   pagination: { page_size: 10 },
   log: { level: 'info', file: '' },
 }
@@ -116,8 +117,12 @@ export default function Settings() {
       if (Object.keys(cleanConfig.claude as object).length === 0) delete cleanConfig.claude
 
       // Project
-      if (config.project.path) {
-        cleanConfig.project = { path: config.project.path }
+      if (config.project.path || config.project.message_action !== defaultConfig.project.message_action) {
+        cleanConfig.project = {}
+        if (config.project.path) (cleanConfig.project as Record<string, unknown>).path = config.project.path
+        if (config.project.message_action !== defaultConfig.project.message_action) {
+          (cleanConfig.project as Record<string, unknown>).message_action = config.project.message_action
+        }
       }
 
       // Pagination
@@ -288,6 +293,46 @@ export default function Settings() {
                     onChange={e => updateConfig('project', 'path', e.target.value)}
                     placeholder="/home/user/projects"
                   />
+                </ConfigField>
+                <ConfigField label="Message Action" hint="how to handle message requests">
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="message_action"
+                        value="task"
+                        checked={config.project.message_action === 'task'}
+                        onChange={e => updateConfig('project', 'message_action', e.target.value)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">TaskOnly</span>
+                      <span className="text-xs text-muted-foreground">- Task 등록만, 직접 실행 안 함</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="message_action"
+                        value="act"
+                        checked={config.project.message_action === 'act'}
+                        onChange={e => updateConfig('project', 'message_action', e.target.value)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">ActionOnly</span>
+                      <span className="text-xs text-muted-foreground">- 직접 실행만, Task 등록 안 함</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="message_action"
+                        value="task|act"
+                        checked={config.project.message_action === 'task|act'}
+                        onChange={e => updateConfig('project', 'message_action', e.target.value)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">Task&Action</span>
+                      <span className="text-xs text-muted-foreground">- 상황에 따라 Task 등록 또는 직접 실행</span>
+                    </label>
+                  </div>
                 </ConfigField>
               </ConfigSection>
 

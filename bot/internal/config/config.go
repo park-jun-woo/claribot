@@ -40,7 +40,8 @@ type ClaudeConfig struct {
 
 // ProjectConfig for project management
 type ProjectConfig struct {
-	Path string `yaml:"path"` // default project creation path
+	Path          string `yaml:"path"`           // default project creation path
+	MessageAction string `yaml:"message_action"` // task, act, task|act (default: task|act)
 }
 
 // PaginationConfig for list pagination
@@ -56,13 +57,14 @@ type LogConfig struct {
 
 // Defaults
 const (
-	DefaultHost        = "127.0.0.1"
-	DefaultPort        = 9847
-	DefaultTimeout     = 1200 // 20 minutes
-	DefaultMaxTimeout  = 1800 // 30 minutes
-	DefaultMaxClaude   = 10
-	DefaultPageSize    = 10
-	DefaultLogLevel    = "info"
+	DefaultHost          = "127.0.0.1"
+	DefaultPort          = 9847
+	DefaultTimeout       = 1200 // 20 minutes
+	DefaultMaxTimeout    = 1800 // 30 minutes
+	DefaultMaxClaude     = 10
+	DefaultPageSize      = 10
+	DefaultLogLevel      = "info"
+	DefaultMessageAction = "task|act" // task, act, task|act
 )
 
 // Load loads config from ~/.claribot/config.yaml
@@ -100,6 +102,7 @@ func (c *Config) setDefaults() {
 	c.Claude.Timeout = DefaultTimeout
 	c.Claude.MaxTimeout = DefaultMaxTimeout
 	c.Claude.Max = DefaultMaxClaude
+	c.Project.MessageAction = DefaultMessageAction
 	c.Pagination.PageSize = DefaultPageSize
 	c.Log.Level = DefaultLogLevel
 }
@@ -119,6 +122,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Claude.Max == 0 {
 		c.Claude.Max = DefaultMaxClaude
+	}
+	if c.Project.MessageAction == "" {
+		c.Project.MessageAction = DefaultMessageAction
 	}
 	if c.Pagination.PageSize == 0 {
 		c.Pagination.PageSize = DefaultPageSize
@@ -159,6 +165,13 @@ func (c *Config) Validate() []string {
 	if c.Claude.Max > 10 {
 		warnings = append(warnings, fmt.Sprintf("max claude instances %d too high, using 10", c.Claude.Max))
 		c.Claude.Max = 10
+	}
+
+	// Validate message_action
+	validActions := map[string]bool{"task": true, "act": true, "task|act": true}
+	if !validActions[c.Project.MessageAction] {
+		warnings = append(warnings, fmt.Sprintf("invalid message_action '%s', using default '%s'", c.Project.MessageAction, DefaultMessageAction))
+		c.Project.MessageAction = DefaultMessageAction
 	}
 
 	if c.Pagination.PageSize < 1 {

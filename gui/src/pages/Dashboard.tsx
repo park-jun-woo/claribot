@@ -239,7 +239,11 @@ export default function Dashboard() {
                         variant="outline"
                         size="sm"
                         className="flex-1 h-8 text-xs"
-                        onClick={() => navigate(`/projects/${p.project_id}/edit`)}
+                        onClick={() => {
+                          switchProject.mutate(p.project_id, {
+                            onSuccess: () => navigate(`/projects/${p.project_id}/edit`),
+                          })
+                        }}
                       >
                         <Pencil className="h-3 w-3 mr-1" />
                         Edit

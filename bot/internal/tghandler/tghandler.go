@@ -86,7 +86,6 @@ func New(bot *telegram.Bot, router *handler.Router, allowedUsers []int64) *Handl
 		{Command: "task", Description: "작업 관리"},
 		{Command: "spec", Description: "스펙 관리"},
 		{Command: "message", Description: "메시지 관리"},
-		{Command: "usage", Description: "Claude 사용량"},
 	})
 
 	return h

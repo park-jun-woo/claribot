@@ -211,10 +211,7 @@ func (r *Router) handleClaude(ctx *Context, input string) types.Result {
 func (r *Router) handleProject(ctx *Context, cmd string, args []string) types.Result {
 	switch cmd {
 	case "":
-		return types.Result{
-			Success: true,
-			Message: "project 명령어:\n  [목록:project list]\n  [생성:project create]\n  [추가:project add]\n  [설정:project set]",
-		}
+		return r.projectOverview(ctx)
 	case "add":
 		var path, desc string
 		if len(args) > 0 {
@@ -310,12 +307,53 @@ func (r *Router) handleProject(ctx *Context, cmd string, args []string) types.Re
 	}
 }
 
+func (r *Router) projectOverview(ctx *Context) types.Result {
+	var sb strings.Builder
+
+	// Current project indicator
+	if ctx.ProjectID != "" {
+		sb.WriteString(fmt.Sprintf("📌 %s\n", ctx.ProjectID))
+	} else {
+		sb.WriteString("📌 GLOBAL\n")
+	}
+
+	// Action buttons
+	sb.WriteString("[추가:project add] [GLOBAL:project switch none]\n")
+
+	// Project list
+	projects, err := project.ListAll()
+	if err != nil {
+		return types.Result{
+			Success: false,
+			Message: fmt.Sprintf("프로젝트 조회 실패: %v", err),
+		}
+	}
+
+	if len(projects) == 0 {
+		sb.WriteString("\n프로젝트가 없습니다.")
+	} else {
+		for _, p := range projects {
+			if p.ID == ctx.ProjectID {
+				sb.WriteString(fmt.Sprintf("[✅ %s:project get %s]", p.ID, p.ID))
+			} else {
+				sb.WriteString(fmt.Sprintf("[%s:project switch %s]", p.ID, p.ID))
+			}
+			sb.WriteString("\n")
+		}
+	}
+
+	return types.Result{
+		Success: true,
+		Message: strings.TrimRight(sb.String(), "\n"),
+	}
+}
+
 func (r *Router) handleTask(ctx *Context, cmd string, args []string) types.Result {
 	// Show help even without project selected
 	if cmd == "" {
 		return types.Result{
 			Success: true,
-			Message: "task 명령어:\n[목록:task list] [추가:task add]\n[플랜순회:task plan --all]\n[실행순회:task run --all]\n[전체순회:task cycle]\n[중단:task stop]",
+			Message: "task 명령어:\n[순회:task cycle][중단:task stop]",
 		}
 	}
 
@@ -488,11 +526,16 @@ func (r *Router) handleMessage(ctx *Context, cmd string, args []string) types.Re
 		// Check if first arg is source (telegram/cli)
 		source := "cli"
 		content := strings.Join(args, " ")
-		if len(args) > 1 && (args[0] == "telegram" || args[0] == "cli") {
+		if len(args) > 1 && (args[0] == "telegram" || args[0] == "cli" || args[0] == "gui") {
 			source = args[0]
 			content = strings.Join(args[1:], " ")
 		}
-		return message.Send(projectPath, content, source)
+		// Pass project ID for tracking
+		var projectID *string
+		if ctx.ProjectID != "" {
+			projectID = &ctx.ProjectID
+		}
+		return message.SendWithProject(projectID, projectPath, content, source)
 	case "list":
 		page, pageSize := r.parsePagination(args)
 		return message.List(nil, true, pagination.NewPageRequest(page, pageSize))
