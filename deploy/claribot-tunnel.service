@@ -1,0 +1,18 @@
+[Unit]
+Description=Claribot SSH Reverse Tunnel to Bastion
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/autossh -M 0 -N \
+  -o "ServerAliveInterval 30" \
+  -o "ServerAliveCountMax 3" \
+  -o "ExitOnForwardFailure yes" \
+  -o "StrictHostKeyChecking accept-new" \
+  -R 19847:127.0.0.1:9847 \
+  -i %h/git/bastion/bastion-key.pem \
+  ubuntu@43.201.60.23
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

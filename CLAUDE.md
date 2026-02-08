@@ -46,6 +46,30 @@ claribot/
 
 > 한글 버전은 [docs/kr/](docs/kr/) 디렉토리를 참고하세요.
 
+### 외부 프로젝트
+- [../bastion/CLAUDE.md](../bastion/CLAUDE.md) - Bastion 서버 (인프라, SSH, 보안 관련 작업 시 참고)
+
+### Bastion 서버 접속
+
+Bastion(AWS EC2)은 Security Group이 현재 IP만 허용하므로 `bastion-secugate` 서비스가 실행 중이어야 접속 가능.
+
+```bash
+# 1. bastion-secugate 서비스 상태 확인 (SG에 현재 IP 등록)
+systemctl is-active bastion-secugate
+
+# 서비스가 inactive면 bastion 프로젝트에서 설치
+cd /mnt/c/Users/mail/git/bastion && make install
+
+# 2. SSH 접속 (~/.ssh/config에 Host bastion 정의됨)
+ssh bastion
+
+# 3. 파일 전송
+scp <파일> bastion:~/
+```
+
+> **주의**: bastion IP(현재 43.201.60.23)는 인스턴스 재시작 시 변경됨.
+> 변경 시 `~/.ssh/config`의 bastion HostName과 `/etc/default/bastion-tunnel`의 BASTION_IP 수정 필요.
+
 ## Coding Conventions
 
 ### Go Style

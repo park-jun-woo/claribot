@@ -59,6 +59,7 @@ bot/internal/webui/dist/
 .env.local
 .env.*.local
 *.local
+deploy/bastion.env
 
 # Logs
 logs/
