@@ -41,7 +41,7 @@ export default function Tasks() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ title: '', parentId: '', spec: '' })
+  const [addForm, setAddForm] = useState({ spec: '', parentId: '' })
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const { data: taskDetail } = useTask(selectedTaskId ?? undefined)
   const selectedTask = taskDetail?.data ?? null
@@ -52,7 +52,7 @@ export default function Tasks() {
 
   // Get current project from status
   const { data: statusData } = useStatus() as { data: StatusResponse | undefined }
-  const currentProject = statusData?.message?.match(/📌 (.+?) —/u)?.[1] || 'GLOBAL'
+  const currentProject = statusData?.project_id || statusData?.message?.match(/📌 (.+?) —/u)?.[1] || 'GLOBAL'
 
   // Check if current project is running
   const isProjectRunning = statusData?.cycle_statuses?.some(
@@ -79,13 +79,12 @@ export default function Tasks() {
   const filteredTreeData = useMemo(() => statusFilter ? buildTree(filteredItems) : treeData, [statusFilter, filteredItems, treeData])
 
   const handleAdd = async () => {
-    if (!addForm.title) return
+    if (!addForm.spec) return
     await addTask.mutateAsync({
-      title: addForm.title,
+      spec: addForm.spec,
       parentId: addForm.parentId ? Number(addForm.parentId) : undefined,
-      spec: addForm.spec || undefined,
     })
-    setAddForm({ title: '', parentId: '', spec: '' })
+    setAddForm({ spec: '', parentId: '' })
     setShowAdd(false)
   }
 
@@ -232,7 +231,7 @@ export default function Tasks() {
                 <RefreshCw className="h-4 w-4 animate-spin" />
               </Button>
             ) : (
-              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => taskCycle.mutate()} disabled={taskCycle.isPending}>
+              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => taskCycle.mutate(currentProject !== 'GLOBAL' ? currentProject : undefined)} disabled={taskCycle.isPending || currentProject === 'GLOBAL'}>
                 <Play className="h-4 w-4" />
               </Button>
             )}
@@ -243,11 +242,12 @@ export default function Tasks() {
         {showAdd && (
           <Card>
             <CardContent className="p-3 space-y-2">
-              <Input
-                placeholder="Task title"
-                value={addForm.title}
-                onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))}
-                className="h-8 text-sm"
+              <Textarea
+                placeholder="Task spec (first line becomes title)"
+                value={addForm.spec}
+                onChange={e => setAddForm(f => ({ ...f, spec: e.target.value }))}
+                rows={3}
+                className="text-sm"
               />
               <Input
                 placeholder="Parent ID (optional)"
@@ -255,14 +255,8 @@ export default function Tasks() {
                 onChange={e => setAddForm(f => ({ ...f, parentId: e.target.value }))}
                 className="h-8 text-sm"
               />
-              <Input
-                placeholder="Spec (optional)"
-                value={addForm.spec}
-                onChange={e => setAddForm(f => ({ ...f, spec: e.target.value }))}
-                className="h-8 text-sm"
-              />
               <div className="flex gap-2">
-                <Button size="sm" className="h-7 text-xs" onClick={handleAdd} disabled={addTask.isPending}>Add</Button>
+                <Button size="sm" className="h-7 text-xs" onClick={handleAdd} disabled={addTask.isPending || !addForm.spec.trim()}>Add</Button>
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAdd(false)}>Cancel</Button>
               </div>
             </CardContent>
@@ -454,7 +448,7 @@ function TreeView({
     <div className="space-y-0.5">
       {nodes.map(node => {
         const id = node.task.id || node.task.ID
-        const title = node.task.title || node.task.Title || '(untitled)'
+        const title = node.task.title || node.task.Title || (node.task.spec || node.task.Spec || '').split('\n')[0] || '(untitled)'
         const status = node.task.status || node.task.Status || 'todo'
         const hasChildren = node.children.length > 0
         const isExpanded = expandedNodes.has(id)
@@ -622,7 +616,7 @@ function ListView({ items, onSelect, selectedId, isMobile }: { items: any[]; onS
       <div className="space-y-2">
         {sortedItems.map((t: any) => {
           const id = t.id || t.ID
-          const title = t.title || t.Title || '(untitled)'
+          const title = t.title || t.Title || (t.spec || t.Spec || '').split('\n')[0] || '(untitled)'
           const status = t.status || t.Status || 'todo'
           const depth = t.depth ?? t.Depth ?? 0
           const parentId = t.parent_id ?? t.ParentID
@@ -667,7 +661,7 @@ function ListView({ items, onSelect, selectedId, isMobile }: { items: any[]; onS
       <tbody>
         {sortedItems.map((t: any) => {
           const id = t.id || t.ID
-          const title = t.title || t.Title || '(untitled)'
+          const title = t.title || t.Title || (t.spec || t.Spec || '').split('\n')[0] || '(untitled)'
           const status = t.status || t.Status || 'todo'
           const depth = t.depth ?? t.Depth ?? 0
           const parentId = t.parent_id ?? t.ParentID

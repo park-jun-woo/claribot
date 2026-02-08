@@ -291,17 +291,14 @@ Built by `BuildContextMap()` which queries all tasks with their status and depth
 ### task add
 
 ```bash
-# Basic
-clari task add "title"
+# Basic (first line becomes title)
+clari task add "spec content"
 
 # Specify parent
-clari task add "title" --parent 1
+clari task add "spec content" --parent 1
 
-# Include Spec (used during Claude splitting)
-clari task add "title" --parent 1 --spec "requirements"
-
-# Load Spec from file
-clari task add "title" --spec-file path/to/spec.md
+# Load Spec from file (recommended for detailed specs)
+clari task add --parent 1 --spec-file path/to/spec.md
 ```
 
 ### task get

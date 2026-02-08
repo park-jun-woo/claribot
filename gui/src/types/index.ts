@@ -135,6 +135,7 @@ export interface StatusResponse {
   success: boolean
   message: string
   data?: ClaudeStatus
+  project_id?: string
   cycle_status: CycleStatus
   cycle_statuses?: CycleStatus[]
   task_stats?: TaskStats

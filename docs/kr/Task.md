@@ -121,14 +121,14 @@ ORDER BY depth DESC, id ASC
 ### task add
 
 ```bash
-# 기본
-clari task add "제목"
+# 기본 (첫 줄이 title로 자동 설정)
+clari task add "작업 내용"
 
 # 부모 지정
-clari task add "제목" --parent 1
+clari task add "작업 내용" --parent 1
 
-# Spec 포함 (Claude 분할 시 사용)
-clari task add "제목" --parent 1 --spec "요구사항"
+# Spec 파일로 추가 (상세 내용 권장)
+clari task add --parent 1 --spec-file path/to/spec.md
 ```
 
 ### task plan

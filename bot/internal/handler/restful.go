@@ -332,8 +332,8 @@ func (r *Router) HandleAddTask(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
-	if body.Title == "" {
-		writeError(w, http.StatusBadRequest, "title required")
+	if body.Title == "" && body.Spec == "" {
+		writeError(w, http.StatusBadRequest, "title or spec required")
 		return
 	}
 	result := task.Add(ctx.ProjectPath, body.Title, body.ParentID, body.Spec)
@@ -446,11 +446,33 @@ func (r *Router) HandleRunAllTasks(w http.ResponseWriter, req *http.Request) {
 // HandleCycleTasks handles POST /api/tasks/cycle
 func (r *Router) HandleCycleTasks(w http.ResponseWriter, req *http.Request) {
 	ctx := r.getContextFromRequest(req)
-	if ctx.ProjectPath == "" {
+
+	// Accept optional project_id from body
+	var body struct {
+		ProjectID string `json:"project_id"`
+	}
+	if req.Body != nil {
+		decodeBody(req, &body)
+	}
+
+	projectPath := ctx.ProjectPath
+	if body.ProjectID != "" {
+		result := project.Get(body.ProjectID)
+		if !result.Success {
+			writeError(w, http.StatusBadRequest, "프로젝트를 찾을 수 없습니다: "+body.ProjectID)
+			return
+		}
+		if p, ok := result.Data.(*project.Project); ok {
+			projectPath = p.Path
+			r.SetProject(p.ID, p.Path, p.Description)
+		}
+	}
+
+	if projectPath == "" {
 		writeError(w, http.StatusBadRequest, "프로젝트를 먼저 선택하세요")
 		return
 	}
-	writeResult(w, task.Cycle(ctx.ProjectPath))
+	writeResult(w, task.Cycle(projectPath))
 }
 
 // HandleStopTask handles POST /api/tasks/stop
@@ -876,10 +898,11 @@ func (r *Router) HandleStatus(w http.ResponseWriter, req *http.Request) {
 
 	// Wrap into enriched response
 	resp := map[string]interface{}{
-		"success":       result.Success,
-		"message":       result.Message,
-		"data":          result.Data,
-		"cycle_status":  csJSON,
+		"success":        result.Success,
+		"message":        result.Message,
+		"data":           result.Data,
+		"project_id":     ctx.ProjectID,
+		"cycle_status":   csJSON,
 		"cycle_statuses": cycleStatusesJSON,
 	}
 	if taskStats != nil {

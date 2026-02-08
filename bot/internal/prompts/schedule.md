@@ -17,7 +17,7 @@
 
 ### task (작업 관리)
 - `task list [parent_id]` - 작업 목록 조회
-- `task add <title> [--parent <id>]` - 작업 추가
+- `task add <spec> [--parent <id>] [--spec-file <path>]` - 작업 추가 (첫 줄이 title)
 - `task get <id>` - 작업 상세 조회
 - `task set <id> <field> <value>` - 작업 필드 수정
 - `task plan [id]` - 단일 Task Plan 생성

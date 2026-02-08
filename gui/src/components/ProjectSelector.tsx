@@ -8,7 +8,7 @@ import { useProjects, useSwitchProject, useStatus } from '@/hooks/useClaribot'
 import { projectAPI } from '@/api/client'
 import {
   FolderOpen, ChevronDown, Search, Pin, PinOff, ArrowUpDown,
-  Clock, Calendar, ListTodo
+  Clock, Calendar, ListTodo, ExternalLink,
 } from 'lucide-react'
 
 type SortField = 'last_accessed' | 'created_at' | 'task_count'
@@ -24,13 +24,16 @@ interface ProjectItem {
   task_count?: number
 }
 
-export function ProjectSelector() {
+interface ProjectSelectorProps {
+  collapsed?: boolean
+}
+
+export function ProjectSelector({ collapsed = false }: ProjectSelectorProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>('last_accessed')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
-
   const { data: status } = useStatus()
   const { data: projects, refetch } = useProjects()
   const switchProject = useSwitchProject()
@@ -52,6 +55,9 @@ export function ProjectSelector() {
       task_count: p.task_count,
     }))
   }, [projects])
+
+  // Current project data
+  const currentProjectData = projectList.find(p => p.id === currentProject)
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -125,11 +131,6 @@ export function ProjectSelector() {
     refetch()
   }
 
-  const handleSetCategory = async (id: string, category: string) => {
-    await projectAPI.set(id, 'category', category)
-    refetch()
-  }
-
   const cycleSortField = () => {
     const fields: SortField[] = ['last_accessed', 'created_at', 'task_count']
     const idx = fields.indexOf(sortField)
@@ -152,61 +153,72 @@ export function ProjectSelector() {
     task_count: ListTodo,
   }[sortField]
 
-  return (
-    <div className="relative ml-2 project-selector" onClick={e => e.stopPropagation()}>
-      <Button
-        variant="outline"
-        size="sm"
-        className="gap-1 h-8"
-        onClick={() => setOpen(!open)}
-      >
-        <FolderOpen className="h-4 w-4" />
-        <span className="hidden sm:inline max-w-[100px] truncate">{currentProject}</span>
-        <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-      </Button>
-
-      {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 w-[320px] rounded-md border bg-popover shadow-lg">
-          {/* Search */}
-          <div className="p-2 border-b">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <Input
-                placeholder="검색..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="h-7 pl-7 text-xs"
-                autoFocus
-              />
-            </div>
+  // Collapsed mode: icon only
+  if (collapsed) {
+    return (
+      <div className="relative project-selector" onClick={e => e.stopPropagation()}>
+        <button
+          className="flex items-center justify-center w-full p-2 rounded-md hover:bg-accent transition-colors"
+          onClick={() => setOpen(!open)}
+          title={currentProject === 'GLOBAL' ? '프로젝트 선택' : currentProject}
+        >
+          <div className="flex items-center justify-center h-8 w-8 rounded-md bg-primary/10">
+            <FolderOpen className="h-4 w-4 text-primary" />
           </div>
+        </button>
 
-          {/* Sort & Filter */}
-          <div className="px-2 py-1.5 border-b flex items-center gap-1 flex-wrap">
-            {/* Sort */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-[10px] gap-1 px-1.5"
-              onClick={cycleSortField}
-              title="정렬 기준 변경"
-            >
-              <SortIcon className="h-3 w-3" />
-              {sortLabel[sortField]}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={toggleSortDir}
-              title={sortDir === 'desc' ? '내림차순' : '오름차순'}
-            >
-              <ArrowUpDown className={cn("h-3 w-3", sortDir === 'asc' && "rotate-180")} />
-            </Button>
+        {open && (
+          <div className="absolute top-full mt-1 left-0 z-50 w-[320px] rounded-md border bg-popover shadow-lg">
+            {renderDropdown()}
+          </div>
+        )}
+      </div>
+    )
+  }
 
-            <div className="w-px h-4 bg-border mx-1" />
+  function renderDropdown() {
+    return (
+      <>
+        {/* Search */}
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              placeholder="검색..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-7 pl-7 text-xs"
+              autoFocus
+            />
+          </div>
+        </div>
 
-            {/* Category Filter */}
+        {/* Sort */}
+        <div className="px-2 py-1 border-b flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-[10px] gap-1 px-1.5"
+            onClick={cycleSortField}
+            title="정렬 기준 변경"
+          >
+            <SortIcon className="h-3 w-3" />
+            {sortLabel[sortField]}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={toggleSortDir}
+            title={sortDir === 'desc' ? '내림차순' : '오름차순'}
+          >
+            <ArrowUpDown className={cn("h-3 w-3", sortDir === 'asc' && "rotate-180")} />
+          </Button>
+        </div>
+
+        {/* Category Filter */}
+        {categories.length > 0 && (
+          <div className="px-2 py-1 border-b flex items-center gap-1 flex-wrap">
             <Button
               variant={categoryFilter === null ? "secondary" : "ghost"}
               size="sm"
@@ -227,89 +239,113 @@ export function ProjectSelector() {
               </Button>
             ))}
           </div>
+        )}
 
-          {/* Project List */}
-          <ScrollArea className="max-h-[300px]">
-            <div className="p-1">
-              {/* GLOBAL option */}
-              <button
+        {/* Project List */}
+        <ScrollArea className="max-h-[300px]">
+          <div className="p-1">
+            {/* Projects */}
+            {filteredProjects.map(p => (
+              <div
+                key={p.id}
                 className={cn(
-                  "w-full text-left px-2 py-2 text-xs rounded-sm hover:bg-accent flex items-center gap-2",
-                  currentProject === 'GLOBAL' && "bg-accent"
+                  "w-full text-left px-2 py-2 text-xs rounded-sm hover:bg-accent flex items-center gap-2 cursor-pointer group",
+                  currentProject === p.id && "bg-accent"
                 )}
-                onClick={() => handleSwitch('none')}
+                onClick={() => handleSwitch(p.id)}
               >
-                <span className="font-medium">GLOBAL</span>
-              </button>
-
-              {/* Projects */}
-              {filteredProjects.map(p => (
-                <div
-                  key={p.id}
-                  className={cn(
-                    "w-full text-left px-2 py-2 text-xs rounded-sm hover:bg-accent flex items-center gap-2 cursor-pointer group",
-                    currentProject === p.id && "bg-accent"
-                  )}
-                  onClick={() => handleSwitch(p.id)}
+                {/* Pin button */}
+                <button
+                  className="opacity-50 hover:opacity-100 shrink-0"
+                  onClick={e => handleTogglePin(e, p.id, p.pinned)}
+                  title={p.pinned ? '고정 해제' : '고정'}
                 >
-                  {/* Pin button */}
-                  <button
-                    className="opacity-50 hover:opacity-100 shrink-0"
-                    onClick={e => handleTogglePin(e, p.id, p.pinned)}
-                    title={p.pinned ? '고정 해제' : '고정'}
-                  >
-                    {p.pinned ? (
-                      <Pin className="h-3 w-3 text-primary" />
-                    ) : (
-                      <PinOff className="h-3 w-3 opacity-0 group-hover:opacity-50" />
-                    )}
-                  </button>
+                  {p.pinned ? (
+                    <Pin className="h-3 w-3 text-primary" />
+                  ) : (
+                    <PinOff className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                  )}
+                </button>
 
-                  {/* Project info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium truncate">{p.id}</span>
-                      {p.category && (
-                        <Badge variant="outline" className="text-[9px] h-4 px-1">
-                          {p.category}
-                        </Badge>
-                      )}
-                    </div>
-                    {p.description && (
-                      <div className="text-[10px] text-muted-foreground truncate">
-                        {p.description}
-                      </div>
+                {/* Project info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium truncate">{p.id}</span>
+                    {p.category && (
+                      <Badge variant="outline" className="text-[9px] h-4 px-1">
+                        {p.category}
+                      </Badge>
                     )}
                   </div>
-
-                  {/* Category selector (on hover) */}
-                  <select
-                    className="opacity-0 group-hover:opacity-100 h-5 text-[10px] bg-transparent border rounded px-1 cursor-pointer"
-                    value={p.category}
-                    onClick={e => e.stopPropagation()}
-                    onChange={e => handleSetCategory(p.id, e.target.value)}
-                  >
-                    <option value="">-</option>
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                  {p.description && (
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {p.description}
+                    </div>
+                  )}
                 </div>
-              ))}
 
-              {filteredProjects.length === 0 && projectList.length > 0 && (
-                <div className="text-center text-muted-foreground py-4 text-xs">
-                  검색 결과 없음
+              </div>
+            ))}
+
+            {filteredProjects.length === 0 && projectList.length > 0 && (
+              <div className="text-center text-muted-foreground py-4 text-xs">
+                검색 결과 없음
+              </div>
+            )}
+
+            {projectList.length === 0 && (
+              <div className="text-center text-muted-foreground py-4 text-xs">
+                프로젝트 없음
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* GLOBAL link */}
+        <div className="border-t p-1">
+          <button
+            className="w-full text-left px-2 py-2 text-xs rounded-sm hover:bg-accent flex items-center gap-2 text-muted-foreground"
+            onClick={() => handleSwitch('none')}
+          >
+            <ExternalLink className="h-3 w-3" />
+            <span>GLOBAL</span>
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <div className="relative project-selector" onClick={e => e.stopPropagation()}>
+      {/* Full-width sidebar button - gozip BuildingSelector style */}
+      <button
+        className="flex items-center gap-3 w-full p-2 rounded-md hover:bg-accent transition-colors text-left"
+        onClick={() => setOpen(!open)}
+      >
+        <div className="flex items-center justify-center h-8 w-8 rounded-md bg-primary/10 shrink-0">
+          <FolderOpen className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          {currentProject === 'GLOBAL' ? (
+            <div className="text-xs text-muted-foreground">프로젝트 선택</div>
+          ) : (
+            <>
+              <div className="text-sm font-medium truncate">{currentProject}</div>
+              {currentProjectData?.category && (
+                <div className="text-[10px] text-muted-foreground truncate">
+                  {currentProjectData.category}
                 </div>
               )}
+            </>
+          )}
+        </div>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </button>
 
-              {projectList.length === 0 && (
-                <div className="text-center text-muted-foreground py-4 text-xs">
-                  프로젝트 없음
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-50 rounded-md border bg-popover shadow-lg">
+          {renderDropdown()}
         </div>
       )}
     </div>

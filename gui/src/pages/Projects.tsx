@@ -493,11 +493,7 @@ export default function Projects() {
                       variant="outline"
                       size="sm"
                       className="flex-1 h-8 text-xs"
-                      onClick={() => {
-                        switchProject.mutate(p.id, {
-                          onSuccess: () => taskCycle.mutate(),
-                        })
-                      }}
+                      onClick={() => taskCycle.mutate(p.id)}
                     >
                       <Play className="h-3 w-3 mr-1" />
                       Cycle

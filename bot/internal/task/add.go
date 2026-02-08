@@ -2,6 +2,7 @@ package task
 
 import (
 	"fmt"
+	"strings"
 
 	"parkjunwoo.com/claribot/internal/db"
 	"parkjunwoo.com/claribot/internal/types"
@@ -9,6 +10,16 @@ import (
 
 // Add adds a new task with optional parent and spec
 func Add(projectPath, title string, parentID *int, spec string) types.Result {
+	// Auto-generate title from spec first line if empty
+	if title == "" && spec != "" {
+		firstLine := strings.SplitN(spec, "\n", 2)[0]
+		firstLine = strings.TrimSpace(firstLine)
+		runes := []rune(firstLine)
+		if len(runes) > 100 {
+			firstLine = string(runes[:100])
+		}
+		title = firstLine
+	}
 	localDB, err := db.OpenLocal(projectPath)
 	if err != nil {
 		return types.Result{

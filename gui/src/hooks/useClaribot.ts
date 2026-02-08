@@ -110,8 +110,8 @@ export function useTask(id?: number | string) {
 export function useAddTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (params: { title: string; parentId?: number; spec?: string }) =>
-      taskAPI.add(params.title, params.parentId, params.spec),
+    mutationFn: (params: { spec: string; parentId?: number }) =>
+      taskAPI.add(params.spec, params.parentId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   })
 }
@@ -155,8 +155,11 @@ export function useTaskRun() {
 export function useTaskCycle() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => taskAPI.cycle(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    mutationFn: (projectId?: string) => taskAPI.cycle(projectId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      qc.invalidateQueries({ queryKey: ['status'] })
+    },
   })
 }
 

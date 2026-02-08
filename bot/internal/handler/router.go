@@ -388,16 +388,16 @@ func (r *Router) handleTask(ctx *Context, cmd string, args []string) types.Resul
 		if len(args) < 1 {
 			return types.Result{
 				Success:    true,
-				Message:    "작업 제목을 입력하세요:",
+				Message:    "작업 내용을 입력하세요:",
 				NeedsInput: true,
-				Prompt:     "Title: ",
+				Prompt:     "Spec: ",
 				Context:    "task add",
 			}
 		}
-		// Parse --parent, --spec, --spec-file options
+		// Parse --parent, --spec-file options
 		var parentID *int
-		var spec, specFile string
-		var titleParts []string
+		var specFile string
+		var specParts []string
 		for i := 0; i < len(args); i++ {
 			if args[i] == "--parent" && i+1 < len(args) {
 				pid, err := strconv.Atoi(args[i+1])
@@ -410,13 +410,15 @@ func (r *Router) handleTask(ctx *Context, cmd string, args []string) types.Resul
 				specFile = args[i+1]
 				i++ // skip next arg
 			} else if args[i] == "--spec" && i+1 < len(args) {
-				spec = args[i+1]
+				// backward compatibility: --spec treated as inline spec
+				specParts = append(specParts, args[i+1])
 				i++ // skip next arg
 			} else {
-				titleParts = append(titleParts, args[i])
+				specParts = append(specParts, args[i])
 			}
 		}
-		// --spec-file takes priority over --spec
+		spec := strings.Join(specParts, " ")
+		// --spec-file takes priority
 		if specFile != "" {
 			data, err := os.ReadFile(specFile)
 			if err != nil {
@@ -424,17 +426,16 @@ func (r *Router) handleTask(ctx *Context, cmd string, args []string) types.Resul
 			}
 			spec = string(data)
 		}
-		title := strings.Join(titleParts, " ")
-		if title == "" {
+		if spec == "" {
 			return types.Result{
 				Success:    true,
-				Message:    "작업 제목을 입력하세요:",
+				Message:    "작업 내용을 입력하세요:",
 				NeedsInput: true,
-				Prompt:     "Title: ",
+				Prompt:     "Spec: ",
 				Context:    "task add",
 			}
 		}
-		return task.Add(ctx.ProjectPath, title, parentID, spec)
+		return task.Add(ctx.ProjectPath, "", parentID, spec)
 	case "list":
 		// task list [parent_id] [-p page] [-n pageSize] [--tree]
 		// Check for --tree flag

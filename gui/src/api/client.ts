@@ -127,8 +127,8 @@ export const taskAPI = {
   },
   get: (id: number | string) =>
     apiGet(`/tasks/${id}`),
-  add: (title: string, parentId?: number, spec?: string) =>
-    apiPost('/tasks', { title, parent_id: parentId, spec }),
+  add: (spec: string, parentId?: number) =>
+    apiPost('/tasks', { spec, parent_id: parentId }),
   set: (id: number | string, field: string, value: string) =>
     apiPatch(`/tasks/${id}`, { field, value }),
   delete: (id: number | string) =>
@@ -141,8 +141,8 @@ export const taskAPI = {
     apiPost(`/tasks/${id}/run`),
   runAll: () =>
     apiPost('/tasks/run-all'),
-  cycle: () =>
-    apiPost('/tasks/cycle'),
+  cycle: (projectId?: string) =>
+    apiPost('/tasks/cycle', projectId ? { project_id: projectId } : undefined),
   stop: () =>
     apiPost('/tasks/stop'),
 }

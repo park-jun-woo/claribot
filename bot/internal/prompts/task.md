@@ -41,8 +41,8 @@ cat > /tmp/task-spec-1.md << 'SPEC'
 - {주의할 점}
 SPEC
 
-# 2. Task 생성
-clari task add "<title>" --parent {{.TaskID}} --spec-file /tmp/task-spec-1.md
+# 2. Task 생성 (첫 줄이 title로 자동 설정됨)
+clari task add --parent {{.TaskID}} --spec-file /tmp/task-spec-1.md
 ```
 
 ### Spec 작성 가이드라인
@@ -56,14 +56,13 @@ Spec에 반드시 포함해야 할 항목:
 
 ❌ **잘못된 예시**:
 ```bash
-clari task add "UI 수정" --parent {{.TaskID}} --spec "UI를 수정한다"
+clari task add "UI를 수정한다" --parent {{.TaskID}}
 ```
 
 ✅ **올바른 예시**:
 ```bash
 cat > /tmp/task-spec-1.md << 'SPEC'
-## 목표
-Settings 페이지에 다크모드 토글 스위치를 추가한다.
+Settings 페이지에 다크모드 토글 스위치를 추가
 
 ## 변경 파일
 - `gui/src/pages/Settings.tsx` - 토글 컴포넌트 추가
@@ -76,7 +75,7 @@ Settings 페이지에 다크모드 토글 스위치를 추가한다.
 - CSS 변수 기반으로 색상 전환
 SPEC
 
-clari task add "Settings 다크모드 토글 추가" --parent {{.TaskID}} --spec-file /tmp/task-spec-1.md
+clari task add --parent {{.TaskID}} --spec-file /tmp/task-spec-1.md
 ```
 
 ### 규칙
@@ -157,7 +156,7 @@ clari task add "Settings 다크모드 토글 추가" --parent {{.TaskID}} --spec
 | 명령어 | 설명 |
 |--------|------|
 | `task list [parent_id]` | 작업 목록 조회 |
-| `task add <title> [--parent <id>] [--spec <spec>] [--spec-file <path>]` | 작업 추가 |
+| `task add <spec> [--parent <id>] [--spec-file <path>]` | 작업 추가 (첫 줄이 title) |
 | `task get <id>` | 작업 상세 조회 |
 | `task set <id> <field> <value>` | 작업 필드 수정 |
 | `task delete <id>` | 작업 삭제 |
